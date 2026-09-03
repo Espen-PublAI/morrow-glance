@@ -1,5 +1,6 @@
 import { waitUntil } from 'cloudflare:workers';
 
+import { readSecretValues } from '@/db/block-secrets';
 import { database, ensureSchema } from '@/db/schema-runtime';
 import { resolveBlockSource } from '@/lib/morrow/block-source';
 import { pluginServers } from '@/plugins/server';
@@ -169,6 +170,7 @@ async function fetchViaPlugin(
     env: process.env,
     timeZone: config.timeZone,
     now: new Date(),
+    secrets: await readSecretValues(block.id),
   });
 }
 

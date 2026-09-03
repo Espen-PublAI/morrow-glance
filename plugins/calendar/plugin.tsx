@@ -43,10 +43,10 @@ function Empty({
     <div className="plugin-view calendar-plugin">
       <span className="plugin-label">{label}</span>
       <span className="calendar-state">
-        {!calendar
-          ? 'Enter a calendar address in the block settings'
-          : error
-            ? `Calendar unavailable · ${error}`
+        {error
+          ? `Calendar unavailable · ${error}`
+          : !calendar
+            ? 'Add a published calendar link or a mailbox address in the block settings'
             : 'Waiting for calendar'}
       </span>
     </div>
@@ -140,7 +140,8 @@ function TodayView(props: PluginViewProps) {
         </ol>
       )}
       <span className="plugin-meta">
-        {calendar} · Microsoft 365{data.error ? ` · ${data.error}` : ''}
+        {calendar || 'Published calendar'} · Microsoft 365
+        {data.error ? ` · ${data.error}` : ''}
       </span>
     </div>
   );
@@ -159,8 +160,15 @@ export const plugin = definePlugin({
     ],
     settings: [
       {
+        id: 'icsUrl',
+        label: 'Published calendar link (ICS)',
+        type: 'secret',
+        placeholder:
+          'https://outlook.office365.com/owa/calendar/…/calendar.ics',
+      },
+      {
         id: 'calendar',
-        label: 'Calendar address',
+        label: 'Or a mailbox address (needs Microsoft credentials)',
         type: 'text',
         placeholder: 'room-a@example.org',
       },

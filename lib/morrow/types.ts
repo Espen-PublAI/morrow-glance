@@ -103,6 +103,8 @@ export const PLUGIN_SETTING_TYPES = [
   'timezone',
   'city',
   'boolean',
+  /** Stored server-side per block, never in the configuration. */
+  'secret',
 ] as const;
 export type PluginSettingType = (typeof PLUGIN_SETTING_TYPES)[number];
 
@@ -159,6 +161,8 @@ export interface PluginServerContext {
   /** The display's timezone. */
   timeZone: string;
   now: Date;
+  /** This block's secrets, set in Admin through `secret` settings. */
+  secrets: Record<string, string>;
 }
 
 /**

@@ -193,3 +193,66 @@ export async function searchPlacesRemote(
   const body = (await response.json()) as { results?: unknown };
   return Array.isArray(body.results) ? (body.results as never[]) : [];
 }
+
+/** Names of the secrets stored for a block; values are never sent to the browser. */
+export async function readSecretNames(
+  blockId: string,
+  adminToken = '',
+): Promise<string[]> {
+  const response = await fetch(
+    `/api/blocks/${encodeURIComponent(blockId)}/secrets`,
+    {
+      headers: adminToken ? { authorization: `Bearer ${adminToken}` } : {},
+      cache: 'no-store',
+    },
+  );
+  if (!response.ok)
+    throw new Error(
+      await errorMessage(response, 'Could not read block secrets.'),
+    );
+  const body = (await response.json()) as { names?: string[] };
+  return body.names ?? [];
+}
+
+export async function writeSecret(
+  blockId: string,
+  name: string,
+  value: string,
+  adminToken = '',
+): Promise<string[]> {
+  const response = await fetch(
+    `/api/blocks/${encodeURIComponent(blockId)}/secrets`,
+    {
+      method: 'PUT',
+      headers: {
+        'content-type': 'application/json',
+        ...(adminToken ? { authorization: `Bearer ${adminToken}` } : {}),
+      },
+      body: JSON.stringify({ name, value }),
+    },
+  );
+  if (!response.ok)
+    throw new Error(await errorMessage(response, 'Could not save the secret.'));
+  const body = (await response.json()) as { names?: string[] };
+  return body.names ?? [];
+}
+
+export async function deleteSecret(
+  blockId: string,
+  name: string,
+  adminToken = '',
+): Promise<string[]> {
+  const response = await fetch(
+    `/api/blocks/${encodeURIComponent(blockId)}/secrets?name=${encodeURIComponent(name)}`,
+    {
+      method: 'DELETE',
+      headers: adminToken ? { authorization: `Bearer ${adminToken}` } : {},
+    },
+  );
+  if (!response.ok)
+    throw new Error(
+      await errorMessage(response, 'Could not remove the secret.'),
+    );
+  const body = (await response.json()) as { names?: string[] };
+  return body.names ?? [];
+}

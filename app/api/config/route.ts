@@ -1,4 +1,5 @@
 import { reconcileBlockData } from '@/db/block-data';
+import { pruneSecrets } from '@/db/block-secrets';
 import {
   loadMorrowConfig,
   saveMorrowConfig,
@@ -77,6 +78,11 @@ export async function PUT(request: Request) {
     }
     // Stored data for removed or re-pointed blocks must not outlive the save.
     await reconcileBlockData(before.config, result.stored.config);
+    await pruneSecrets(
+      result.stored.config.pages.flatMap((page) =>
+        page.blocks.map((b) => b.id),
+      ),
+    );
     return respond(result.stored);
   } catch (error) {
     if (error instanceof MorrowConfigError) {

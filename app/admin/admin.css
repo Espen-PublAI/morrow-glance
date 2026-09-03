@@ -983,3 +983,44 @@
   accent-color: var(--admin-text);
   flex: 0 0 auto;
 }
+
+/* Secret settings ----------------------------------------------------------- */
+
+.secret-row {
+  display: flex;
+  gap: 6px;
+}
+.secret-row input {
+  flex: 1;
+  min-width: 0;
+}
+.secret-action {
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: 1px solid var(--admin-line);
+  border-radius: 5px;
+  background: #fff;
+  color: var(--admin-text);
+  font-size: 11px;
+  cursor: pointer;
+}
+.secret-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.secret-action svg {
+  width: 12px;
+}
+.secret-action.is-remove {
+  padding: 0 9px;
+  color: var(--admin-muted);
+}
+.secret-action.is-remove:hover {
+  color: #8d2f28;
+}
+.secret-input .field-note {
+  margin-top: 8px;
+}

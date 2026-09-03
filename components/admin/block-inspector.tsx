@@ -2,6 +2,7 @@ import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { useId } from 'react';
 
 import { CityInput } from '@/components/admin/city-input';
+import { SecretInput } from '@/components/admin/secret-input';
 import { TimeZoneInput } from '@/components/admin/timezone-input';
 import type { SizePreset } from '@/lib/morrow/layout';
 import { CONFIG_LIMITS } from '@/lib/morrow/config';
@@ -140,6 +141,13 @@ export function BlockInspector({
                     }
                     placeholder={setting.placeholder}
                     rows={5}
+                  />
+                ) : setting.type === 'secret' ? (
+                  <SecretInput
+                    id={fieldId}
+                    blockId={block.id}
+                    name={setting.id}
+                    placeholder={setting.placeholder}
                   />
                 ) : setting.type === 'boolean' ? (
                   <input
