@@ -777,6 +777,7 @@ export function AdminConsole({
               }
               onChangeSetting={updateSetting}
               onChangeSettings={updateSettings}
+              displayTimeZone={config.timeZone}
               blockData={blockData[selectedBlock.id]}
               onChangeData={(source) =>
                 updateBlock(selectedBlock.id, (block) => {

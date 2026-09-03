@@ -5,10 +5,10 @@ or on a dotted world map with the city marked. When the city's zone differs
 from the display's, the clock also shows the offset (`+7h`, `−5:30`) and
 whether it is already tomorrow or still yesterday there.
 
-| Setting | Type | Notes                                                                                                                                                                                    |
-| ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `city`  | city | Search by name or common alternate name (`Saigon`, `Bombay`, `Peking`). Picking a city also stores `timeZone` and `coordinates`. Places the index lacks can be chosen as a raw timezone. |
-| `label` | text | Optional. Defaults to the city name.                                                                                                                                                     |
+| Setting | Type | Notes                                                                                                                                                                                                              |
+| ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `city`  | city | Search any place: large cities instantly (also by alternate names such as `Saigon`), villages and towns through the online geocoder, or type `lat, lon`. Picking a place also stores `timeZone` and `coordinates`. |
+| `label` | text | Optional. Defaults to the city name.                                                                                                                                                                               |
 
 Views: `digital`, `analog`, `map`. Default size 4 × 2, minimum 2 × 1. Time is
 shown to the minute, so the analog face has hour and minute hands only.

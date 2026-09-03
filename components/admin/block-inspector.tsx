@@ -26,6 +26,7 @@ export function BlockInspector({
   onChangeSettings,
   blockData,
   onChangeData,
+  displayTimeZone,
 }: {
   block: GlanceBlock;
   plugin: PluginRuntime;
@@ -40,6 +41,8 @@ export function BlockInspector({
   /** Latest stored data for this block, if any. */
   blockData?: BlockData;
   onChangeData: (source: BlockDataSource | undefined) => void;
+  /** The display's timezone, used for typed coordinates. */
+  displayTimeZone: string;
 }) {
   const { manifest } = plugin;
   const settings = manifest.settings ?? [];
@@ -142,6 +145,7 @@ export function BlockInspector({
                   <CityInput
                     id={fieldId}
                     value={value}
+                    displayTimeZone={displayTimeZone}
                     onChange={onChangeSettings}
                   />
                 ) : setting.type === 'timezone' ? (

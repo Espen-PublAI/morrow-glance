@@ -5,10 +5,10 @@ behind Yr. Pick a city and the plugin derives its own data source from the
 stored coordinates; Morrow Server fetches the forecast once an hour while a
 screen shows the block.
 
-| Setting | Type | Notes                                                                       |
-| ------- | ---- | --------------------------------------------------------------------------- |
-| `city`  | city | Search by name. Stores `timeZone` and `coordinates`, which the plugin uses. |
-| `label` | text | Optional. Defaults to the city name.                                        |
+| Setting | Type | Notes                                                                                                                                                                                            |
+| ------- | ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `city`  | city | Search any place: large cities instantly from the bundled index, villages and towns through the online geocoder, or type `lat, lon`. Stores `timeZone` and `coordinates`, which the plugin uses. |
+| `label` | text | Optional. Defaults to the city name.                                                                                                                                                             |
 
 Views: `now` (icon, temperature, wind, rain), `today` (the next twelve hours in
 two-hour steps), `week` (seven days with high, low, and rain). Default size

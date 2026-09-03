@@ -170,3 +170,26 @@ export async function fetchBlockData(): Promise<Record<string, BlockData>> {
     return {};
   return body as Record<string, BlockData>;
 }
+
+/** Online place search for Admin's city picker. Empty on any failure. */
+export async function searchPlacesRemote(
+  query: string,
+  adminToken = '',
+): Promise<
+  Array<{
+    name: string;
+    region: string;
+    timeZone: string;
+    lat: number;
+    lon: number;
+    population: number;
+  }>
+> {
+  const url = `/api/geocode?q=${encodeURIComponent(query)}`;
+  const response = await fetch(url, {
+    headers: adminToken ? { authorization: `Bearer ${adminToken}` } : {},
+  });
+  if (!response.ok) return [];
+  const body = (await response.json()) as { results?: unknown };
+  return Array.isArray(body.results) ? (body.results as never[]) : [];
+}

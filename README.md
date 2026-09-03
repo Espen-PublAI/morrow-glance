@@ -210,7 +210,7 @@ Issues, ideas, and focused pull requests are welcome. Read `CONTRIBUTING.md` fir
 
 ## Data credits
 
-The world clock's city search uses [GeoNames](https://www.geonames.org/) data (CC BY 4.0), and its map uses [Natural Earth](https://www.naturalearthdata.com/) land shapes (public domain), both bundled as compact generated files under `lib/morrow/geo/`. Regenerate them with `npm run geo`. Weather forecasts come from [MET Norway](https://api.met.no/) (CC BY 4.0) and are fetched by Morrow Server at display time.
+The world clock's city search uses [GeoNames](https://www.geonames.org/) data (CC BY 4.0), and its map uses [Natural Earth](https://www.naturalearthdata.com/) land shapes (public domain), both bundled as compact generated files under `lib/morrow/geo/`. Regenerate them with `npm run geo`. Weather forecasts come from [MET Norway](https://api.met.no/) (CC BY 4.0) and are fetched by Morrow Server at display time. Admin's place search adds results from the [Open-Meteo geocoding API](https://open-meteo.com/) (GeoNames data, CC BY 4.0) through Morrow Server, so villages and towns are found too; typed coordinates work for anywhere else.
 
 ## License
 

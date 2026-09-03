@@ -69,6 +69,8 @@
 .weather-days {
   display: grid;
   gap: clamp(2px, 1cqmin, 14px);
+  /* Rows stay compact and left-aligned however wide the block is. */
+  max-width: 34em;
 }
 
 .weather-days li {

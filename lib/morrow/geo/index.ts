@@ -114,3 +114,78 @@ export function loadCityIndex(): Promise<City[]> {
   );
   return indexPromise;
 }
+
+/** A place from either the bundled index or the online geocoder. */
+export interface Place {
+  name: string;
+  /** Region and country for disambiguation, e.g. "Buskerud, Norway". */
+  region: string;
+  timeZone: string;
+  lat: number;
+  lon: number;
+  population: number;
+  /** Where it came from; remote results fill in what the index lacks. */
+  origin: 'index' | 'remote' | 'coordinates';
+}
+
+export function placeFromCity(
+  city: City,
+  countryName: (code: string) => string,
+): Place {
+  return {
+    name: city.n,
+    region: countryName(city.c),
+    timeZone: city.z,
+    lat: city.la,
+    lon: city.lo,
+    population: city.p * 1000,
+    origin: 'index',
+  };
+}
+
+/** Two places within ~5 km with the same name are the same place. */
+function samePlace(a: Place, b: Place): boolean {
+  return (
+    normalise(a.name) === normalise(b.name) &&
+    Math.abs(a.lat - b.lat) < 0.05 &&
+    Math.abs(a.lon - b.lon) < 0.05
+  );
+}
+
+/** Index results first (instant), then remote results that add something new. */
+export function mergePlaces(
+  local: Place[],
+  remote: Place[],
+  limit = 8,
+): Place[] {
+  const merged = [...local];
+  for (const place of remote) {
+    if (!merged.some((existing) => samePlace(existing, place)))
+      merged.push(place);
+  }
+  return merged.slice(0, limit);
+}
+
+/**
+ * `"60.04, 9.15"` typed into the search becomes a place of its own, so any
+ * spot on Earth can be chosen even when no geocoder knows its name.
+ */
+export function placeFromCoordinatesQuery(
+  query: string,
+  timeZone: string,
+): Place | undefined {
+  const match =
+    /^\s*(-?\d{1,2}(?:\.\d+)?)\s*[, ]\s*(-?\d{1,3}(?:\.\d+)?)\s*$/.exec(query);
+  if (!match) return undefined;
+  const coordinates = parseCoordinates(`${match[1]},${match[2]}`);
+  if (!coordinates) return undefined;
+  return {
+    name: formatCoordinates(coordinates),
+    region: 'Coordinates',
+    timeZone,
+    lat: coordinates.lat,
+    lon: coordinates.lon,
+    population: 0,
+    origin: 'coordinates',
+  };
+}

@@ -2,7 +2,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   formatCoordinates,
+  mergePlaces,
   parseCoordinates,
+  placeFromCoordinatesQuery,
+  type Place,
   project,
   searchCities,
   searchZones,
@@ -112,5 +115,49 @@ describe('coordinates and projection', () => {
     const oslo = zoneCoordinates('Europe/Oslo');
     expect(oslo?.lat).toBeCloseTo(59.9, 0);
     expect(zoneCoordinates('Mars/Olympus')).toBeUndefined();
+  });
+});
+
+describe('mergePlaces', () => {
+  const place = (
+    name: string,
+    lat: number,
+    lon: number,
+    origin: Place['origin'],
+  ): Place => ({
+    name,
+    region: 'x',
+    timeZone: 'UTC',
+    lat,
+    lon,
+    population: 0,
+    origin,
+  });
+
+  it('keeps index results first and adds only new remote places', () => {
+    const local = [place('Oslo', 59.91, 10.75, 'index')];
+    const remote = [
+      place('Oslo', 59.9127, 10.7461, 'remote'),
+      place('Veggli', 60.04, 9.15, 'remote'),
+    ];
+    expect(
+      mergePlaces(local, remote).map((p) => `${p.name}:${p.origin}`),
+    ).toEqual(['Oslo:index', 'Veggli:remote']);
+  });
+});
+
+describe('placeFromCoordinatesQuery', () => {
+  it('turns typed coordinates into a place and ignores other text', () => {
+    expect(
+      placeFromCoordinatesQuery('60.04, 9.15', 'Europe/Oslo'),
+    ).toMatchObject({
+      name: '60.04,9.15',
+      lat: 60.04,
+      lon: 9.15,
+      origin: 'coordinates',
+    });
+    expect(placeFromCoordinatesQuery('-33.9 151.2', 'UTC')?.lat).toBe(-33.9);
+    expect(placeFromCoordinatesQuery('Veggli', 'UTC')).toBeUndefined();
+    expect(placeFromCoordinatesQuery('95, 10', 'UTC')).toBeUndefined();
   });
 });
