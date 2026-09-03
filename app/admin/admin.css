@@ -964,3 +964,19 @@
   color: var(--admin-muted);
   font-size: 10px;
 }
+
+.field-label:has(> .field-checkbox) {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  color: var(--admin-text);
+  font-size: 11px;
+}
+.field-checkbox {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--admin-text);
+}

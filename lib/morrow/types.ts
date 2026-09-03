@@ -36,7 +36,9 @@ export interface GlanceLayout {
  */
 export type BlockDataSource =
   | { kind: 'poll'; url: string; intervalSeconds: number }
-  | { kind: 'webhook' };
+  | { kind: 'webhook' }
+  /** Fetched by the plugin's own server module (`plugins/<name>/server.ts`). */
+  | { kind: 'plugin'; intervalSeconds: number };
 
 export const DATA_SOURCE_KINDS = ['poll', 'webhook'] as const;
 
@@ -100,6 +102,7 @@ export const PLUGIN_SETTING_TYPES = [
   'textarea',
   'timezone',
   'city',
+  'boolean',
 ] as const;
 export type PluginSettingType = (typeof PLUGIN_SETTING_TYPES)[number];
 
@@ -141,6 +144,39 @@ export interface PluginManifest {
    * settings are not enough yet.
    */
   source?: (settings: PluginSettings) => BlockDataSource | undefined;
+  /**
+   * True when `plugins/<name>/server.ts` fetches this plugin's data on the
+   * server, typically with credentials from environment variables. Admin shows
+   * a read-only data status; the block needs no source of its own.
+   */
+  serverFetch?: boolean;
+}
+
+/** What a plugin's server module receives when Morrow Server fetches for a block. */
+export interface PluginServerContext {
+  /** Server environment variables; credentials live here, never in config. */
+  env: Record<string, string | undefined>;
+  /** The display's timezone. */
+  timeZone: string;
+  now: Date;
+}
+
+/**
+ * Server-only half of a plugin: `plugins/<name>/server.ts` exporting `server`.
+ * Runs in Morrow Server only, so it may hold secrets and call authenticated APIs.
+ * Whatever it returns is stored as the block's data and handed to the views.
+ */
+export interface PluginServer {
+  /** How often to refresh while a screen shows the block. */
+  intervalSeconds: number;
+  fetch: (
+    settings: PluginSettings,
+    context: PluginServerContext,
+  ) => Promise<unknown>;
+}
+
+export function definePluginServer(server: PluginServer): PluginServer {
+  return server;
 }
 
 /** Props every plugin view receives. */

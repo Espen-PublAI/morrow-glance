@@ -106,6 +106,8 @@ A block can get live data without anyone writing code. In Admin, select a block 
 
 Views receive the data as a `data` prop. The built-in **Value** plugin shows one field from it with a dotted path such as `main.temp`. Plugins that know where their data lives can declare `source(settings)` in their manifest instead; the **Weather** plugin builds its MET Norway URL from the picked city's coordinates, so there is nothing to configure beyond the city.
 
+Plugins that need credentials add a `server.ts` beside their `plugin.tsx`. It runs only in Morrow Server, reads secrets from the environment, and returns the data the views get. The **Calendar** plugin uses this to read Microsoft 365 calendars through Microsoft Graph with application permissions; see `plugins/calendar/README.md` for the one-time Entra ID setup.
+
 Safety rules that are enforced, not just documented: poll URLs must be public HTTPS, and loopback, private, link-local, and internal-looking hosts are refused so the server cannot be pointed at its own network. Responses and webhook bodies are capped at 64 KB, polls time out after eight seconds, and redirects are not followed. Webhooks are disabled until `MORROW_WEBHOOK_TOKEN` is set. Keep credentials out of poll URLs: the configuration is readable by every Player, so an authenticated source should push data with a webhook instead. Everything delivered to a block is public to whoever can open a Player.
 
 ## Plugins
@@ -198,7 +200,7 @@ plugins/                     Installed plugins and their views
 morrow.config.ts             Clean-install fallback configuration
 ```
 
-The initial plugin library: a world clock with digital, analog, and map views, a weather forecast for any place on Earth, a user-authored text block, and a Value block that shows one field from live data. `plugins/_template/` is a starting point for new ones.
+The initial plugin library: a world clock with digital, analog, and map views, a weather forecast for any place on Earth, a Microsoft 365 calendar for rooms, shared mailboxes, and people, a user-authored text block, and a Value block that shows one field from live data. `plugins/_template/` is a starting point for new ones.
 
 ## Direction
 

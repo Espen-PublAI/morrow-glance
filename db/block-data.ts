@@ -2,6 +2,7 @@ import { waitUntil } from 'cloudflare:workers';
 
 import { database, ensureSchema } from '@/db/schema-runtime';
 import { resolveBlockSource } from '@/lib/morrow/block-source';
+import { pluginServers } from '@/plugins/server';
 import {
   POLL_TIMEOUT_MS,
   blockDataToDrop,
@@ -157,20 +158,39 @@ async function fetchJson(url: string): Promise<unknown> {
   }
 }
 
+/** Let the plugin's server module fetch with its own credentials. */
+async function fetchViaPlugin(
+  block: GlanceBlock,
+  config: MorrowConfig,
+): Promise<unknown> {
+  const server = pluginServers[block.plugin];
+  if (!server) throw new Error('This plugin has no server module.');
+  return server.fetch(block.settings ?? {}, {
+    env: process.env,
+    timeZone: config.timeZone,
+    now: new Date(),
+  });
+}
+
 // One refresh per block per isolate at a time, so a burst of Players does not
 // fan out into duplicate fetches.
 const inFlight = new Map<string, Promise<BlockData>>();
 
-function refreshPoll(
+function refresh(
   block: GlanceBlock,
   previous: BlockData | undefined,
+  config: MorrowConfig,
 ): Promise<BlockData> {
   const source = resolveBlockSource(block);
-  if (!source || source.kind !== 'poll')
+  if (!source || source.kind === 'webhook')
     return Promise.resolve(previous ?? emptyData());
   const running = inFlight.get(block.id);
   if (running) return running;
-  const task = fetchJson(source.url)
+  const fetched =
+    source.kind === 'poll'
+      ? fetchJson(source.url)
+      : fetchViaPlugin(block, config);
+  const task = fetched
     .then((data) => writeBlockData(block.id, data))
     .catch((cause: unknown) =>
       writeBlockError(
@@ -211,7 +231,7 @@ export async function loadBlockData(
     blocks.map(async (block) => {
       const previous = stored[block.id];
       const source = resolveBlockSource(block);
-      if (source?.kind !== 'poll')
+      if (!source || source.kind === 'webhook')
         return [block.id, previous ?? emptyData()] as const;
 
       const stale = isStale(
@@ -222,10 +242,10 @@ export async function loadBlockData(
       );
       if (!stale) return [block.id, previous ?? emptyData()] as const;
       if (previous?.fetchedAt) {
-        inBackground(refreshPoll(block, previous));
+        inBackground(refresh(block, previous, config));
         return [block.id, previous] as const;
       }
-      return [block.id, await refreshPoll(block, previous)] as const;
+      return [block.id, await refresh(block, previous, config)] as const;
     }),
   );
 

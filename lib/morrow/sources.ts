@@ -2,6 +2,7 @@ import type {
   BlockDataSource,
   GlanceBlock,
   MorrowConfig,
+  PluginSettings,
 } from '@/lib/morrow/types';
 
 /**
@@ -94,7 +95,7 @@ export const RETRY_AFTER_ERROR_SECONDS = 60;
  * so a transient outage does not blank a screen for an hour.
  */
 export function isStale(
-  source: Extract<BlockDataSource, { kind: 'poll' }>,
+  source: { intervalSeconds: number },
   fetchedAt: string | null,
   now = Date.now(),
   hadError = false,
@@ -157,9 +158,15 @@ export const ownSource: SourceResolver = (block) => block.data;
  * Identity of a block's source. When it changes, stored data belongs to the
  * old source and must not be shown against the new one.
  */
-export function sourceKey(source: BlockDataSource | undefined): string | null {
+export function sourceKey(
+  source: BlockDataSource | undefined,
+  settings: PluginSettings = {},
+): string | null {
   if (!source) return null;
-  return source.kind === 'webhook' ? 'webhook' : `poll:${source.url}`;
+  if (source.kind === 'webhook') return 'webhook';
+  if (source.kind === 'poll') return `poll:${source.url}`;
+  // A plugin fetch depends on the block's settings; a change means new data.
+  return `plugin:${JSON.stringify(settings)}`;
 }
 
 /**
@@ -173,11 +180,14 @@ export function blockDataToDrop(
 ): string[] {
   const nextKeys = new Map(
     blocksWithSources(next, resolve).map(
-      (block) => [block.id, sourceKey(resolve(block))] as const,
+      (block) => [block.id, sourceKey(resolve(block), block.settings)] as const,
     ),
   );
   return blocksWithSources(previous, resolve)
-    .filter((block) => nextKeys.get(block.id) !== sourceKey(resolve(block)))
+    .filter(
+      (block) =>
+        nextKeys.get(block.id) !== sourceKey(resolve(block), block.settings),
+    )
     .map((block) => block.id);
 }
 

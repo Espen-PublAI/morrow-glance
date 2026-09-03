@@ -141,6 +141,20 @@ export function BlockInspector({
                     placeholder={setting.placeholder}
                     rows={5}
                   />
+                ) : setting.type === 'boolean' ? (
+                  <input
+                    id={fieldId}
+                    type="checkbox"
+                    className="field-checkbox"
+                    checked={
+                      block.settings?.[setting.id] === undefined
+                        ? setting.defaultValue === true
+                        : block.settings[setting.id] === true
+                    }
+                    onChange={(event) =>
+                      onChangeSetting(setting.id, event.target.checked)
+                    }
+                  />
                 ) : setting.type === 'city' ? (
                   <CityInput
                     id={fieldId}
@@ -172,6 +186,20 @@ export function BlockInspector({
           })}
         </section>
       )}
+      {manifest.serverFetch && (
+        <section className="inspector-section">
+          <span className="inspector-label">Data</span>
+          <p className="data-status">
+            {blockData?.fetchedAt
+              ? `Fetched by Morrow Server · last data ${new Date(blockData.fetchedAt).toLocaleString()}`
+              : 'Fetched by Morrow Server with its own credentials. Save, then wait for the first fetch.'}
+            {blockData?.error && (
+              <span className="data-status-error">{blockData.error}</span>
+            )}
+          </p>
+        </section>
+      )}
+
       {manifest.source && !manifest.acceptsData && (
         <section className="inspector-section">
           <span className="inspector-label">Data</span>

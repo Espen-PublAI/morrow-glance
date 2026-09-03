@@ -58,6 +58,8 @@ plugins/
   text/                 Reference plugin: user-authored text
   value/                Reference plugin: one field from live data
   weather/              Reference plugin: derives its own source from a city
+  calendar/             Reference plugin: server module with credentials (Graph)
+  server.ts             Registry of plugins/<name>/server.ts (server only)
   _template/            Copy to start a new plugin (underscore folders are skipped)
 ```
 
@@ -82,7 +84,7 @@ Rules of thumb:
 3. Style it in `plugin.css`. Blocks are CSS containers, so use container
    units (`cqmin`, `cqi`) and theme colours (`--ink`, `--faint`, `--paper`).
 4. Read settings through `lib/morrow/settings.ts` rather than indexing the
-   settings object. Setting types: `text`, `textarea`, `timezone`, and `city`.
+   settings object. Setting types: `text`, `textarea`, `timezone`, `city`, and `boolean`.
    A `city` setting also fills its sibling settings `timeZone` and
    `coordinates` when a city is picked, so views can use them directly.
 5. Describe settings and views in the folder's `README.md`.
@@ -100,6 +102,14 @@ If the plugin knows where its data lives, declare `source(settings)` in the
 manifest and return a poll source built from the settings, as
 `plugins/weather/` does from a city's coordinates. The server uses it when the
 block has no hand-configured source, and the same safety rules apply.
+
+If the plugin needs credentials or a non-JSON API, add `plugins/<name>/server.ts`
+exporting `server` from `definePluginServer`. It runs only in Morrow Server,
+receives the block settings, the environment, and the display timezone, and
+returns the data the views get. Set `serverFetch: true` in the manifest so
+Admin shows the data status. Never import `server.ts` from a view. See
+`plugins/calendar/` for the pattern, including redacting sensitive fields on
+the server so they never reach a Player.
 
 ## Adding a screen preset
 
