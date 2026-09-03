@@ -119,7 +119,7 @@ const MAP_HEIGHT = 96;
 const landPath = (() => {
   const cellW = MAP_WIDTH / land.cols;
   const cellH = MAP_HEIGHT / land.rows;
-  const r = Math.min(cellW, cellH) * 0.28;
+  const r = Math.min(cellW, cellH) * 0.34;
   const parts: string[] = [];
   land.grid.forEach((row, rowIndex) => {
     for (let col = 0; col < row.length; col += 1) {
@@ -143,10 +143,11 @@ function MapView(props: PluginViewProps) {
 
   return (
     <div className="plugin-view clock-plugin clock-map">
+      <span className="plugin-label">{label}</span>
       <svg
         className="clock-map-svg"
         viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
-        preserveAspectRatio="xMidYMid meet"
+        preserveAspectRatio="xMinYMid meet"
         aria-hidden="true"
         focusable="false"
       >
@@ -161,7 +162,6 @@ function MapView(props: PluginViewProps) {
           </g>
         )}
       </svg>
-      <span className="plugin-label">{label}</span>
       <div className="clock-map-time">
         <time>{formatTime(now, zone)}</time>
         <Relation now={now} zone={zone} city={city} displayZone={displayZone} />

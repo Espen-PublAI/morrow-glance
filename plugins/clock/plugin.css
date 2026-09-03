@@ -63,25 +63,23 @@
   fill: currentColor;
 }
 
-/* Map: dotted world behind the time, the city marked with a ring. */
+/* Map: dotted world above the time, the city marked with a ring. */
 .clock-map {
-  position: relative;
   justify-content: space-between;
 }
 
 .clock-map-svg {
-  position: absolute;
-  inset: 0;
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  height: 100%;
-  padding: clamp(14px, 7cqmin, 110px);
+  margin: clamp(6px, 3cqmin, 36px) 0;
   color: var(--ink);
   pointer-events: none;
 }
 
 .clock-land {
   fill: var(--faint);
-  opacity: 0.55;
+  opacity: 0.72;
 }
 
 .clock-marker-halo {
@@ -94,19 +92,13 @@
   fill: currentColor;
 }
 
-.clock-map .plugin-label,
-.clock-map-time {
-  position: relative;
-  z-index: 1;
-}
-
 .clock-map-time {
   display: flex;
   flex-direction: column;
 }
 
 .clock-map-time time {
-  font-size: clamp(28px, 22cqmin, 300px);
+  font-size: clamp(28px, 20cqmin, 300px);
   font-weight: 340;
   line-height: 0.85;
   letter-spacing: -0.07em;
