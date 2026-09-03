@@ -1,0 +1,393 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-ring: var(--ring);
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+:root {
+  --background: #efeee9;
+  --foreground: #222220;
+  --primary: #222220;
+  --primary-foreground: #efeee9;
+  --muted: #e5e4df;
+  --muted-foreground: #77766f;
+  --border: #c9c8c2;
+  --ring: #585854;
+  --paper: #efeee9;
+  --ink: #222220;
+  --faint: #85847d;
+  --quiet: #aaa9a3;
+  --rule: #c9c8c2;
+}
+
+/*
+ * Dotted dividers and the faint footer rule derive from ink so every theme matches.
+ * Declared on the themed element itself: a custom property resolves var() where
+ * it is declared, so putting these on :root would always use the light ink.
+ */
+[data-color] {
+  --divider: color-mix(in srgb, var(--ink) 62%, var(--paper));
+  --faint-rule: color-mix(in srgb, var(--ink) 16%, var(--paper));
+  /* Hairlines grow with the screen so a TV reads like a 7-inch panel. */
+  --hairline: clamp(1px, 0.09vw, 3px);
+}
+
+[data-color='white'] {
+  --background: #f7f7f4;
+  --foreground: #20201e;
+  --primary: #20201e;
+  --primary-foreground: #f7f7f4;
+  --muted: #ecece8;
+  --muted-foreground: #7d7c76;
+  --border: #d5d4ce;
+  --ring: #5a5a56;
+  --paper: #f7f7f4;
+  --ink: #20201e;
+  --faint: #81807a;
+  --quiet: #aaa9a3;
+  --rule: #d5d4ce;
+}
+
+[data-color='grey'] {
+  --background: #d9d9d4;
+  --foreground: #20201e;
+  --primary: #20201e;
+  --primary-foreground: #edede9;
+  --muted: #cecec9;
+  --muted-foreground: #65655f;
+  --border: #b7b7b1;
+  --ring: #555550;
+  --paper: #d9d9d4;
+  --ink: #20201e;
+  --faint: #65655f;
+  --quiet: #85857f;
+  --rule: #b7b7b1;
+}
+
+[data-color='black'] {
+  color-scheme: dark;
+  --background: #121311;
+  --foreground: #ecece7;
+  --primary: #ecece7;
+  --primary-foreground: #121311;
+  --muted: #242522;
+  --muted-foreground: #999a94;
+  --border: #353632;
+  --ring: #b8b9b3;
+  --paper: #121311;
+  --ink: #ecece7;
+  --faint: #999a94;
+  --quiet: #666762;
+  --rule: #353632;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), Arial, sans-serif;
+}
+button,
+a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.morrow-display {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--paper);
+  /* Set colour here, inside the [data-color] scope, so every theme gets its own ink. */
+  color: var(--ink);
+}
+
+.display-tabs {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+.page-stage {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: clamp(18px, 2.6vmin, 64px) clamp(20px, 2.8vw, 80px);
+}
+/* Blocks are size containers, so the grid takes its height from flex, not content. */
+.page-stage [data-slot='tabs-content'] {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.glance-grid {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
+  gap: 0;
+  padding: 0;
+  background: var(--paper);
+  animation: page-in 0.18s ease-out;
+}
+
+@keyframes page-in {
+  from {
+    opacity: 0.5;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.glance-block {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  container-type: size;
+  grid-column: var(--column) / span var(--span);
+  grid-row: var(--row) / span var(--row-span);
+  background: var(--paper);
+  /* Dotted hairlines, e-paper style. Right/bottom always; left/top only when no
+     neighbour already draws that edge (see sharedEdges), so shared edges are 1px. */
+  border: var(--hairline) dotted var(--divider);
+}
+.glance-block[data-shared-left] {
+  border-left: 0;
+}
+.glance-block[data-shared-top] {
+  border-top: 0;
+}
+
+.missing-plugin {
+  padding: 20px;
+  color: var(--faint);
+  font-family: var(--font-geist-mono);
+  font-size: 10px;
+}
+
+.paper-footer {
+  --bar: clamp(40px, 5.2vmin, 120px);
+  min-height: var(--bar);
+  position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 1.4em;
+  padding: 0 clamp(16px, 2.8vw, 80px);
+  border-top: 1px solid var(--faint-rule);
+  font-size: clamp(10px, 1.5vmin, 30px);
+  background: var(--paper);
+}
+.footer-group {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 1.6em;
+}
+.footer-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7em;
+  max-width: 34vw;
+  height: 2.1em;
+  overflow: hidden;
+  color: var(--ink);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.footer-tag.is-quiet {
+  color: var(--faint);
+  font-weight: 400;
+}
+.footer-tag .footer-mark {
+  width: 0.65em;
+  height: 0.65em;
+  border: max(1px, 0.14em) solid var(--ink);
+  border-radius: 50%;
+}
+.footer-center {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1em;
+}
+.footer-group.is-end {
+  justify-self: end;
+}
+
+.rotation-track {
+  position: absolute;
+  inset: -1px 0 auto;
+  height: 1px;
+  overflow: hidden;
+}
+.rotation-track span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform-origin: left;
+  background: var(--ink);
+  animation: rotation-progress linear forwards;
+}
+@keyframes rotation-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.tab-list {
+  gap: 0;
+  height: 2.6em;
+  padding: 0 0.5em;
+}
+.tab-list [data-slot='tabs-trigger'] {
+  height: 2.6em;
+  padding: 0 0.9em;
+  border-radius: 0;
+  color: var(--faint);
+  font-size: inherit;
+  font-weight: 480;
+}
+.tab-list [data-slot='tabs-trigger'][data-active] {
+  color: var(--ink);
+}
+.tab-list [data-slot='tabs-trigger']::after {
+  bottom: 0 !important;
+  height: 2px !important;
+  background: var(--ink) !important;
+}
+
+.player-controls {
+  display: flex;
+  padding: 0 4px;
+  align-items: center;
+  gap: 1px;
+  opacity: 0.18;
+  transition: opacity 0.16s ease;
+}
+.paper-footer:hover .player-controls,
+.paper-footer:focus-within .player-controls {
+  opacity: 1;
+}
+.player-controls > span {
+  min-width: 2.6em;
+  text-align: center;
+  color: var(--faint);
+  font-family: var(--font-geist-mono);
+  font-size: 0.85em;
+}
+.player-controls button {
+  width: 2.4em;
+  height: 2.4em;
+  border-radius: 50%;
+  color: var(--ink);
+}
+.player-controls svg {
+  width: 1.2em;
+}
+
+@media (max-width: 760px) {
+  .morrow-display {
+    /* Keep the viewport as the scroll container so the sticky footer works. */
+    overflow: visible;
+  }
+  .page-stage {
+    padding: 14px 16px;
+  }
+  .page-stage [data-slot='tabs-content'] {
+    flex: none;
+    display: block;
+  }
+  .glance-grid {
+    flex: none;
+    display: flex;
+    flex-direction: column;
+  }
+  .glance-block {
+    min-height: 150px;
+    container-type: inline-size;
+  }
+  .paper-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 5;
+    grid-template-columns: auto 1fr auto;
+    gap: 10px;
+    padding: 0 10px 0 12px;
+  }
+  .footer-group.is-end,
+  .footer-tag.is-date {
+    display: none;
+  }
+  .player-controls {
+    opacity: 0.55;
+  }
+  .player-controls button:first-child,
+  .player-controls button:last-child,
+  .player-controls > span {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/*
+ * Shared plugin scaffolding. Each plugin's own styles live in its folder;
+ * these give every view the same padding, label treatment, and container units.
+ */
+.plugin-view {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: clamp(14px, 7cqmin, 110px);
+}
+.plugin-label {
+  margin-bottom: auto;
+  color: var(--faint);
+  font-size: clamp(9px, 3cqmin, 30px);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

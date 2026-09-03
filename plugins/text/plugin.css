@@ -1,0 +1,10 @@
+/* Text: a short message set large, with an optional label above. */
+
+.text-plugin p {
+  max-width: 24ch;
+  margin: clamp(10px, 5cqmin, 56px) 0 0;
+  font-size: clamp(18px, 14cqmin, 180px);
+  font-weight: 390;
+  line-height: 1.02;
+  letter-spacing: -0.052em;
+}

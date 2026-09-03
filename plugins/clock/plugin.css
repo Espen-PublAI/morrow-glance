@@ -1,0 +1,15 @@
+/* Clock: a large time with an optional label above and the zone below. */
+
+.clock-plugin time {
+  font-size: clamp(32px, 34cqmin, 460px);
+  font-weight: 340;
+  line-height: 0.82;
+  letter-spacing: -0.075em;
+  font-variant-numeric: tabular-nums;
+}
+
+.clock-plugin small {
+  margin-top: clamp(8px, 4cqmin, 40px);
+  color: var(--faint);
+  font-size: clamp(9px, 3cqmin, 30px);
+}

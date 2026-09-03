@@ -1,0 +1,9 @@
+/*
+ * Blocks are CSS containers, so use container units (cqmin, cqi) rather than
+ * vw. Colours come from the theme: var(--ink), var(--faint), var(--paper).
+ */
+.example-plugin strong {
+  font-size: clamp(24px, 20cqmin, 240px);
+  font-weight: 400;
+  letter-spacing: -0.04em;
+}

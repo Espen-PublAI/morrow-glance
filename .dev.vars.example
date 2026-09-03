@@ -1,0 +1,4 @@
+# Local variables for the Cloudflare runtime used by `npm run dev` and `npm start`.
+# Copy to `.dev.vars` (gitignored). In production set these as Worker secrets.
+MORROW_ADMIN_TOKEN=
+MORROW_WEBHOOK_TOKEN=local-hook
