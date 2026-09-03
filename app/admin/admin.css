@@ -967,16 +967,19 @@
 
 .field-label:has(> .field-checkbox) {
   display: flex;
-  flex-direction: row-reverse;
   align-items: center;
-  justify-content: flex-start;
   gap: 8px;
   color: var(--admin-text);
   font-size: 11px;
 }
-.field-checkbox {
+.field-label > input.field-checkbox {
+  order: -1;
   width: 14px;
   height: 14px;
   margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
   accent-color: var(--admin-text);
+  flex: 0 0 auto;
 }
