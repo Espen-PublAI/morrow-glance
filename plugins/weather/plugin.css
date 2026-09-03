@@ -7,8 +7,8 @@
 }
 
 .weather-icon {
-  width: clamp(18px, 9cqmin, 120px);
-  height: clamp(18px, 9cqmin, 120px);
+  width: clamp(18px, min(11cqmin, 6.5cqi), 140px);
+  height: clamp(18px, min(11cqmin, 6.5cqi), 140px);
   color: var(--ink);
   flex: 0 0 auto;
 }
@@ -59,7 +59,7 @@
 }
 
 .weather-hours strong {
-  font-size: clamp(14px, 7cqmin, 90px);
+  font-size: clamp(14px, min(9cqmin, 5.5cqi), 110px);
   font-weight: var(--weight-regular);
   letter-spacing: var(--tracking-display);
   font-variant-numeric: tabular-nums;
@@ -68,7 +68,7 @@
 /* Week: one row per day. */
 .weather-days {
   display: grid;
-  gap: clamp(2px, 1cqmin, 14px);
+  gap: clamp(2px, 1.2cqmin, 16px);
   /* Rows stay compact and left-aligned however wide the block is. */
   max-width: 34em;
 }
@@ -78,7 +78,9 @@
   grid-template-columns: 4.5em 1.4em 1fr auto;
   align-items: center;
   gap: clamp(6px, 3cqmin, 30px);
-  font-size: clamp(11px, 4.6cqmin, 60px);
+  /* Seven rows should fill the block: size from the height, capped by the
+     width so long rows never overflow narrow blocks. */
+  font-size: clamp(11px, min(6.4cqmin, 5.2cqi), 72px);
   font-variant-numeric: tabular-nums;
 }
 
