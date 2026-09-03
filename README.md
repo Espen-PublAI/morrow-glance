@@ -104,7 +104,7 @@ A block can get live data without anyone writing code. In Admin, select a block 
 | **Poll**    | Morrow Server fetches a public HTTPS JSON URL on an interval you choose (at least 60 s). It fetches lazily, whenever a Player asks for data and the interval has elapsed, so nothing runs while no screen is watching. | Open APIs: weather, transit, air quality, public counters.                                                     |
 | **Webhook** | An external system sends JSON to `POST /api/webhooks/<blockId>`. Each delivery replaces the block's data.                                                                                                              | Anything with credentials or internal data: Power Automate, n8n, Home Assistant, a script in your own network. |
 
-Views receive the data as a `data` prop. The built-in **Value** plugin shows one field from it with a dotted path such as `main.temp`.
+Views receive the data as a `data` prop. The built-in **Value** plugin shows one field from it with a dotted path such as `main.temp`. Plugins that know where their data lives can declare `source(settings)` in their manifest instead; the **Weather** plugin builds its MET Norway URL from the picked city's coordinates, so there is nothing to configure beyond the city.
 
 Safety rules that are enforced, not just documented: poll URLs must be public HTTPS, and loopback, private, link-local, and internal-looking hosts are refused so the server cannot be pointed at its own network. Responses and webhook bodies are capped at 64 KB, polls time out after eight seconds, and redirects are not followed. Webhooks are disabled until `MORROW_WEBHOOK_TOKEN` is set. Keep credentials out of poll URLs: the configuration is readable by every Player, so an authenticated source should push data with a webhook instead. Everything delivered to a block is public to whoever can open a Player.
 
@@ -198,7 +198,7 @@ plugins/                     Installed plugins and their views
 morrow.config.ts             Clean-install fallback configuration
 ```
 
-The initial plugin library contains only real system primitives: a world clock with digital, analog, and map views, a user-authored text block, and a Value block that shows one field from live data. `plugins/_template/` is a starting point for new ones.
+The initial plugin library: a world clock with digital, analog, and map views, a weather forecast for any place on Earth, a user-authored text block, and a Value block that shows one field from live data. `plugins/_template/` is a starting point for new ones.
 
 ## Direction
 
@@ -210,7 +210,7 @@ Issues, ideas, and focused pull requests are welcome. Read `CONTRIBUTING.md` fir
 
 ## Data credits
 
-The world clock's city search uses [GeoNames](https://www.geonames.org/) data (CC BY 4.0), and its map uses [Natural Earth](https://www.naturalearthdata.com/) land shapes (public domain), both bundled as compact generated files under `lib/morrow/geo/`. Regenerate them with `npm run geo`.
+The world clock's city search uses [GeoNames](https://www.geonames.org/) data (CC BY 4.0), and its map uses [Natural Earth](https://www.naturalearthdata.com/) land shapes (public domain), both bundled as compact generated files under `lib/morrow/geo/`. Regenerate them with `npm run geo`. Weather forecasts come from [MET Norway](https://api.met.no/) (CC BY 4.0) and are fetched by Morrow Server at display time.
 
 ## License
 

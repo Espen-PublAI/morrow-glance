@@ -57,6 +57,7 @@ plugins/
   clock/                Reference plugin: a clock
   text/                 Reference plugin: user-authored text
   value/                Reference plugin: one field from live data
+  weather/              Reference plugin: derives its own source from a city
   _template/            Copy to start a new plugin (underscore folders are skipped)
 ```
 
@@ -94,6 +95,11 @@ webhook, and Morrow Server does the fetching and storage. Do not fetch from
 the view: credentials would end up in the browser and on the screen. See
 `plugins/value/` for the pattern and `lib/morrow/sources.ts` for the helpers
 that pick fields out of JSON.
+
+If the plugin knows where its data lives, declare `source(settings)` in the
+manifest and return a poll source built from the settings, as
+`plugins/weather/` does from a city's coordinates. The server uses it when the
+block has no hand-configured source, and the same safety rules apply.
 
 ## Adding a screen preset
 

@@ -1,6 +1,7 @@
 import { waitUntil } from 'cloudflare:workers';
 
 import { database, ensureSchema } from '@/db/schema-runtime';
+import { resolveBlockSource } from '@/lib/morrow/block-source';
 import {
   POLL_TIMEOUT_MS,
   blockDataToDrop,
@@ -10,6 +11,9 @@ import {
   readBodyWithLimit,
 } from '@/lib/morrow/sources';
 import type { BlockData, GlanceBlock, MorrowConfig } from '@/lib/morrow/types';
+
+const SOURCE_USER_AGENT =
+  'Morrow Glance (+https://github.com/Espen-PublAI/morrow-glance)';
 
 /**
  * Per-block data: what a poll fetched or a webhook delivered. One row per
@@ -109,7 +113,7 @@ export async function reconcileBlockData(
   previous: MorrowConfig,
   next: MorrowConfig,
 ): Promise<void> {
-  await deleteBlockData(blockDataToDrop(previous, next));
+  await deleteBlockData(blockDataToDrop(previous, next, resolveBlockSource));
 }
 
 /** Record a failed fetch without discarding the last good data. */
@@ -130,7 +134,8 @@ async function fetchJson(url: string): Promise<unknown> {
     const response = await fetch(url, {
       redirect: 'manual',
       signal: controller.signal,
-      headers: { accept: 'application/json', 'user-agent': 'Morrow Glance' },
+      // Public data APIs such as MET Norway require an identifying User-Agent.
+      headers: { accept: 'application/json', 'user-agent': SOURCE_USER_AGENT },
     });
     if (response.status >= 300 && response.status < 400) {
       throw new Error('Redirects are not followed; use the final URL.');
@@ -160,7 +165,7 @@ function refreshPoll(
   block: GlanceBlock,
   previous: BlockData | undefined,
 ): Promise<BlockData> {
-  const source = block.data;
+  const source = resolveBlockSource(block);
   if (!source || source.kind !== 'poll')
     return Promise.resolve(previous ?? emptyData());
   const running = inFlight.get(block.id);
@@ -199,13 +204,13 @@ function inBackground(task: Promise<unknown>): void {
 export async function loadBlockData(
   config: MorrowConfig,
 ): Promise<Record<string, BlockData>> {
-  const blocks = blocksWithSources(config);
+  const blocks = blocksWithSources(config, resolveBlockSource);
   const stored = await readBlockData(blocks.map((block) => block.id));
 
   const results = await Promise.all(
     blocks.map(async (block) => {
       const previous = stored[block.id];
-      const source = block.data;
+      const source = resolveBlockSource(block);
       if (source?.kind !== 'poll')
         return [block.id, previous ?? emptyData()] as const;
 

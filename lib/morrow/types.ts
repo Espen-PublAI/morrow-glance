@@ -134,6 +134,13 @@ export interface PluginManifest {
   minSize?: { span: number; rowSpan: number };
   /** True when views read `data`; Admin then offers poll and webhook sources. */
   acceptsData?: boolean;
+  /**
+   * Derive the block's data source from its settings, for plugins that know
+   * where their data lives (a weather plugin from a city's coordinates). Used
+   * when the block has no hand-configured source. Return undefined when the
+   * settings are not enough yet.
+   */
+  source?: (settings: PluginSettings) => BlockDataSource | undefined;
 }
 
 /** Props every plugin view receives. */

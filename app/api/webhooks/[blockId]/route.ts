@@ -1,6 +1,7 @@
 import { writeBlockData } from '@/db/block-data';
 import { getMorrowConfig } from '@/db/morrow-config';
 import { authorizeWebhook } from '@/lib/morrow/server-auth';
+import { resolveBlockSource } from '@/lib/morrow/block-source';
 import { MAX_DATA_BYTES, blocksWithSources } from '@/lib/morrow/sources';
 
 /**
@@ -24,9 +25,10 @@ export async function POST(request: Request, context: RouteContext) {
 
   const { blockId } = await context.params;
   const config = await getMorrowConfig();
-  const block = blocksWithSources(config).find(
+  const block = blocksWithSources(config, resolveBlockSource).find(
     (candidate) =>
-      candidate.id === blockId && candidate.data?.kind === 'webhook',
+      candidate.id === blockId &&
+      resolveBlockSource(candidate)?.kind === 'webhook',
   );
   if (!block) {
     return Response.json(

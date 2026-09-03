@@ -1,0 +1,109 @@
+/* Weather: line icons and figures on the shared type scale. */
+
+.weather-plugin ol {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.weather-icon {
+  width: clamp(18px, 9cqmin, 120px);
+  height: clamp(18px, 9cqmin, 120px);
+  color: var(--ink);
+  flex: 0 0 auto;
+}
+
+.weather-icon.is-large {
+  width: clamp(40px, 26cqmin, 320px);
+  height: clamp(40px, 26cqmin, 320px);
+}
+
+.weather-state {
+  color: var(--faint);
+  font-size: clamp(11px, 4cqmin, 40px);
+}
+
+/* Now: icon beside a large temperature. */
+.weather-now-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-gap);
+}
+
+.weather-now-main strong {
+  font-size: var(--type-display);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Next hours: a row of columns. */
+.weather-hours {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-gap);
+}
+
+.weather-hours li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(4px, 2cqmin, 20px);
+}
+
+.weather-hour {
+  color: var(--faint);
+  font-size: var(--type-meta);
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-hours strong {
+  font-size: clamp(14px, 7cqmin, 90px);
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--tracking-display);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Week: one row per day. */
+.weather-days {
+  display: grid;
+  gap: clamp(2px, 1cqmin, 14px);
+}
+
+.weather-days li {
+  display: grid;
+  grid-template-columns: 4.5em 1.4em 1fr auto;
+  align-items: center;
+  gap: clamp(6px, 3cqmin, 30px);
+  font-size: clamp(11px, 4.6cqmin, 60px);
+  font-variant-numeric: tabular-nums;
+}
+
+.weather-days .weather-icon {
+  width: 1.4em;
+  height: 1.4em;
+}
+
+.weather-day {
+  color: var(--faint);
+}
+
+.weather-rain {
+  color: var(--faint);
+  font-size: 0.8em;
+}
+
+.weather-range {
+  display: flex;
+  gap: 0.6em;
+  justify-content: flex-end;
+}
+
+.weather-range strong {
+  font-weight: var(--weight-regular);
+}
+
+.weather-range span {
+  color: var(--faint);
+}

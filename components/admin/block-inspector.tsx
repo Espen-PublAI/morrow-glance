@@ -168,6 +168,22 @@ export function BlockInspector({
           })}
         </section>
       )}
+      {manifest.source && !manifest.acceptsData && (
+        <section className="inspector-section">
+          <span className="inspector-label">Data</span>
+          <p className="data-status">
+            {manifest.source(block.settings ?? {})
+              ? blockData?.fetchedAt
+                ? `Fetched by the plugin · last data ${new Date(blockData.fetchedAt).toLocaleString()}`
+                : 'Fetched by the plugin from its settings. Save, then wait for the first fetch.'
+              : 'The plugin fetches its own data once its settings are complete.'}
+            {blockData?.error && (
+              <span className="data-status-error">{blockData.error}</span>
+            )}
+          </p>
+        </section>
+      )}
+
       {manifest.acceptsData && (
         <section className="inspector-section setting-fields">
           <span className="inspector-label">Data</span>

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   blockDataToDrop,
+  blocksWithSources,
   formatValue,
   isAllowedSourceUrl,
   isStale,
@@ -159,5 +160,52 @@ describe('sourceKey and blockDataToDrop', () => {
     );
     expect(blockDataToDrop(before, after).sort()).toEqual(['changed', 'gone']);
     expect(blockDataToDrop(after, after)).toEqual([]);
+  });
+});
+
+describe('blocksWithSources with a resolver', () => {
+  it('includes blocks whose plugin derives a source from settings', () => {
+    const derived = {
+      kind: 'poll' as const,
+      url: 'https://api.met.no/x',
+      intervalSeconds: 3600,
+    };
+    const resolve = (block: { id: string; data?: unknown }) =>
+      block.id === 'weather'
+        ? derived
+        : (block.data as typeof derived | undefined);
+    const blocks = [
+      {
+        id: 'weather',
+        plugin: 'morrow.weather',
+        view: 'now',
+        column: 1,
+        span: 4,
+        row: 1,
+        rowSpan: 2,
+      },
+      {
+        id: 'plain',
+        plugin: 'morrow.text',
+        view: 'note',
+        column: 5,
+        span: 4,
+        row: 1,
+        rowSpan: 2,
+      },
+    ];
+    const config = {
+      ...morrowConfig,
+      pages: [{ ...morrowConfig.pages[0], blocks }],
+    } as typeof morrowConfig;
+    const empty = {
+      ...config,
+      pages: [{ ...config.pages[0], blocks: [] }],
+    } as typeof morrowConfig;
+    expect(blocksWithSources(config).map((b) => b.id)).toEqual([]);
+    expect(blocksWithSources(config, resolve).map((b) => b.id)).toEqual([
+      'weather',
+    ]);
+    expect(blockDataToDrop(config, empty, resolve)).toEqual(['weather']);
   });
 });

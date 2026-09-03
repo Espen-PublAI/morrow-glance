@@ -145,6 +145,14 @@ export async function readBodyWithLimit(
   return new TextDecoder().decode(merged);
 }
 
+/** Where a block's data comes from: its own setting, or one derived by its plugin. */
+export type SourceResolver = (
+  block: GlanceBlock,
+) => BlockDataSource | undefined;
+
+/** The default resolver only looks at the block itself. */
+export const ownSource: SourceResolver = (block) => block.data;
+
 /**
  * Identity of a block's source. When it changes, stored data belongs to the
  * old source and must not be shown against the new one.
@@ -161,21 +169,25 @@ export function sourceKey(source: BlockDataSource | undefined): string | null {
 export function blockDataToDrop(
   previous: MorrowConfig,
   next: MorrowConfig,
+  resolve: SourceResolver = ownSource,
 ): string[] {
   const nextKeys = new Map(
-    blocksWithSources(next).map(
-      (block) => [block.id, sourceKey(block.data)] as const,
+    blocksWithSources(next, resolve).map(
+      (block) => [block.id, sourceKey(resolve(block))] as const,
     ),
   );
-  return blocksWithSources(previous)
-    .filter((block) => nextKeys.get(block.id) !== sourceKey(block.data))
+  return blocksWithSources(previous, resolve)
+    .filter((block) => nextKeys.get(block.id) !== sourceKey(resolve(block)))
     .map((block) => block.id);
 }
 
 /** Every block in the configuration that has a data source, across all pages. */
-export function blocksWithSources(config: MorrowConfig): GlanceBlock[] {
+export function blocksWithSources(
+  config: MorrowConfig,
+  resolve: SourceResolver = ownSource,
+): GlanceBlock[] {
   return config.pages.flatMap((page) =>
-    page.blocks.filter((block) => block.data),
+    page.blocks.filter((block) => resolve(block)),
   );
 }
 
