@@ -15,7 +15,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test"
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
+    "geo": "node scripts/build-geo.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
@@ -45,9 +46,11 @@
     "oxlint": "1.76.0",
     "oxlint-tsgolint": "7.0.2001",
     "tailwindcss": "4.2.1",
+    "topojson-client": "^3.1.0",
     "typescript": "5.9.3",
     "vite": "8.0.13",
     "vitest": "^4.1.11",
+    "world-atlas": "^2.0.2",
     "wrangler": "4.92.0"
   },
   "type": "module",

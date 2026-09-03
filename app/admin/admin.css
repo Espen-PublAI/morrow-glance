@@ -909,3 +909,58 @@
   margin: 10px 0 0;
   padding: 6px 0;
 }
+
+/* City search --------------------------------------------------------------- */
+
+.city-input {
+  position: relative;
+}
+.city-results {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 260px;
+  overflow: auto;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  border: 1px solid var(--admin-line);
+  border-radius: 6px;
+  background: #fff;
+  box-shadow: 0 10px 30px rgba(30, 30, 28, 0.12);
+}
+.city-results button {
+  width: 100%;
+  display: grid;
+  gap: 2px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--admin-text);
+  text-align: left;
+  cursor: pointer;
+}
+.city-results button:hover,
+.city-results button:focus-visible {
+  background: var(--admin-soft);
+  outline: 0;
+}
+.city-results strong {
+  font-size: 11px;
+  font-weight: 550;
+}
+.city-results small {
+  overflow: hidden;
+  color: var(--admin-muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.city-results-note {
+  padding: 8px 9px;
+  color: var(--admin-muted);
+  font-size: 9px;
+}

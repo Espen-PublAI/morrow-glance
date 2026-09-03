@@ -81,7 +81,9 @@ Rules of thumb:
 3. Style it in `plugin.css`. Blocks are CSS containers, so use container
    units (`cqmin`, `cqi`) and theme colours (`--ink`, `--faint`, `--paper`).
 4. Read settings through `lib/morrow/settings.ts` rather than indexing the
-   settings object.
+   settings object. Setting types: `text`, `textarea`, `timezone`, and `city`.
+   A `city` setting also fills its sibling settings `timeZone` and
+   `coordinates` when a city is picked, so views can use them directly.
 5. Describe settings and views in the folder's `README.md`.
 6. Restart the dev server. The plugin appears in Admin's Plugins list and
    library. `npm test` includes a discovery test that checks ids and views.

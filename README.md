@@ -198,7 +198,7 @@ plugins/                     Installed plugins and their views
 morrow.config.ts             Clean-install fallback configuration
 ```
 
-The initial plugin library contains only real system primitives: a world clock with digital and analog faces, a user-authored text block, and a Value block that shows one field from live data. `plugins/_template/` is a starting point for new ones.
+The initial plugin library contains only real system primitives: a world clock with digital, analog, and map views, a user-authored text block, and a Value block that shows one field from live data. `plugins/_template/` is a starting point for new ones.
 
 ## Direction
 
@@ -207,6 +207,10 @@ The platform boundary is now in place. The next additions can remain small and f
 ## Contributing
 
 Issues, ideas, and focused pull requests are welcome. Read `CONTRIBUTING.md` first. Keep the core small; integrations should remain plugins.
+
+## Data credits
+
+The world clock's city search uses [GeoNames](https://www.geonames.org/) data (CC BY 4.0), and its map uses [Natural Earth](https://www.naturalearthdata.com/) land shapes (public domain), both bundled as compact generated files under `lib/morrow/geo/`. Regenerate them with `npm run geo`.
 
 ## License
 

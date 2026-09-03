@@ -423,13 +423,16 @@ export function AdminConsole({
       placeExisting(id, rect, 'That size does not fit here.'),
   });
 
-  const updateSetting = (id: string, value: PluginSettingValue) => {
+  const updateSettings = (patch: PluginSettings) => {
     if (!selectedBlock) return;
     updateBlock(selectedBlock.id, (block) => ({
       ...block,
-      settings: { ...block.settings, [id]: value },
+      settings: { ...block.settings, ...patch },
     }));
   };
+
+  const updateSetting = (id: string, value: PluginSettingValue) =>
+    updateSettings({ [id]: value });
 
   /* Persistence ---------------------------------------------------------- */
 
@@ -773,6 +776,7 @@ export function AdminConsole({
                 updateBlock(selectedBlock.id, (block) => ({ ...block, view }))
               }
               onChangeSetting={updateSetting}
+              onChangeSettings={updateSettings}
               blockData={blockData[selectedBlock.id]}
               onChangeData={(source) =>
                 updateBlock(selectedBlock.id, (block) => {

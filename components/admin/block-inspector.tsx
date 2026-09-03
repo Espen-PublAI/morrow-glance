@@ -1,6 +1,7 @@
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { useId } from 'react';
 
+import { CityInput } from '@/components/admin/city-input';
 import { TimeZoneInput } from '@/components/admin/timezone-input';
 import type { SizePreset } from '@/lib/morrow/layout';
 import { CONFIG_LIMITS } from '@/lib/morrow/config';
@@ -10,6 +11,7 @@ import type {
   GlanceBlock,
   PluginRuntime,
   PluginSettingValue,
+  PluginSettings,
 } from '@/lib/morrow/types';
 
 export function BlockInspector({
@@ -21,6 +23,7 @@ export function BlockInspector({
   onResize,
   onChangeView,
   onChangeSetting,
+  onChangeSettings,
   blockData,
   onChangeData,
 }: {
@@ -32,6 +35,8 @@ export function BlockInspector({
   onResize: (span: number, rowSpan: number) => void;
   onChangeView: (view: string) => void;
   onChangeSetting: (id: string, value: PluginSettingValue) => void;
+  /** Apply several settings at once, as a city pick does. */
+  onChangeSettings: (patch: PluginSettings) => void;
   /** Latest stored data for this block, if any. */
   blockData?: BlockData;
   onChangeData: (source: BlockDataSource | undefined) => void;
@@ -132,6 +137,12 @@ export function BlockInspector({
                     }
                     placeholder={setting.placeholder}
                     rows={5}
+                  />
+                ) : setting.type === 'city' ? (
+                  <CityInput
+                    id={fieldId}
+                    value={value}
+                    onChange={onChangeSettings}
                   />
                 ) : setting.type === 'timezone' ? (
                   <TimeZoneInput

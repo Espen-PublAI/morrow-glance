@@ -91,7 +91,16 @@ export interface MorrowConfig {
 export type PluginSettingValue = string | number | boolean;
 export type PluginSettings = Record<string, PluginSettingValue>;
 
-export const PLUGIN_SETTING_TYPES = ['text', 'textarea', 'timezone'] as const;
+/**
+ * `city` stores a place name and also fills the sibling settings `timeZone`
+ * and `coordinates` ("lat,lon") from the city index, so views need no lookup.
+ */
+export const PLUGIN_SETTING_TYPES = [
+  'text',
+  'textarea',
+  'timezone',
+  'city',
+] as const;
 export type PluginSettingType = (typeof PLUGIN_SETTING_TYPES)[number];
 
 export interface PluginSettingDefinition {
