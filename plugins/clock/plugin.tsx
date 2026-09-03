@@ -63,11 +63,7 @@ function AnalogView(props: PluginViewProps) {
   return (
     <div className="plugin-view clock-plugin clock-analog">
       <span className="plugin-label">{label}</span>
-      <svg
-        viewBox="0 0 100 100"
-        role="img"
-        aria-label={`${label}, ${formatTime(now, zone)}`}
-      >
+      <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
         <circle className="clock-face" cx="50" cy="50" r="46" />
         {ticks.map((angle) => (
           <line
@@ -100,6 +96,7 @@ function AnalogView(props: PluginViewProps) {
         />
         <circle className="clock-centre" cx="50" cy="50" r="2.2" />
       </svg>
+      <span className="sr-only">{formatTime(now, zone)}</span>
       <Relation now={now} zone={zone} displayZone={displayZone} />
     </div>
   );
