@@ -4,16 +4,16 @@
   display: flex;
   align-items: baseline;
   gap: 0.15em;
-  font-size: clamp(32px, 30cqmin, 420px);
-  font-weight: 400;
-  line-height: 0.9;
-  letter-spacing: -0.06em;
+  font-size: var(--type-display);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
   font-variant-numeric: tabular-nums;
 }
 
 .value-plugin strong small {
   font-size: 0.32em;
-  font-weight: 400;
+  font-weight: var(--weight-regular);
   color: var(--faint);
   letter-spacing: 0;
 }
@@ -24,7 +24,7 @@
 }
 
 .value-plugin-error {
-  margin-top: clamp(6px, 2cqmin, 18px);
+  margin-top: var(--space-gap);
   color: var(--faint);
-  font-size: clamp(9px, 2.6cqmin, 22px);
+  font-size: var(--type-meta);
 }

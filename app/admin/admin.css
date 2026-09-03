@@ -35,7 +35,7 @@
   gap: 8px;
   color: inherit;
   font-size: 12px;
-  font-weight: 550;
+  font-weight: var(--weight-medium);
   text-decoration: none;
 }
 
@@ -109,9 +109,9 @@
   justify-content: space-between;
   margin-bottom: 15px;
   color: var(--admin-muted);
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  font-size: 10px;
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
 }
 
@@ -183,12 +183,12 @@
   position: absolute;
   right: 10px;
   bottom: 10px;
-  font-size: 9px;
+  font-size: 10px;
 }
 .field-label > .field-help {
   position: static;
   color: var(--admin-muted);
-  font-size: 8px;
+  font-size: 10px;
 }
 
 .colour-options {
@@ -245,8 +245,8 @@
   cursor: pointer;
 }
 .page-row > .page-index {
-  font-family: var(--font-geist-mono);
-  font-size: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
 }
 .page-row > svg {
   width: 13px;
@@ -261,13 +261,13 @@
   overflow: hidden;
   color: inherit;
   font-size: 10px;
-  font-weight: 550;
+  font-weight: var(--weight-medium);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .profile-row-copy small {
   color: var(--admin-muted);
-  font-size: 8px;
+  font-size: 10px;
 }
 .page-row:hover {
   background: var(--admin-soft);
@@ -276,7 +276,7 @@
 .page-row.is-active {
   background: #e8e8e3;
   color: var(--admin-text);
-  font-weight: 550;
+  font-weight: var(--weight-medium);
 }
 
 .admin-builder {
@@ -301,11 +301,11 @@
   background: transparent;
   color: var(--admin-text);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: var(--weight-medium);
 }
 .builder-heading > span {
   color: var(--admin-muted);
-  font-size: 9px;
+  font-size: 10px;
 }
 .quiet-action {
   margin-left: auto;
@@ -315,7 +315,7 @@
   border: 0;
   background: transparent;
   color: var(--admin-muted);
-  font-size: 9px;
+  font-size: 10px;
   cursor: pointer;
 }
 .quiet-action:hover {
@@ -414,7 +414,7 @@
   border-radius: 4px;
   background: color-mix(in srgb, var(--paper) 90%, transparent);
   color: var(--faint);
-  font-size: 8px;
+  font-size: 10px;
 }
 .block-chip svg {
   width: 10px;
@@ -437,10 +437,10 @@
 .empty-canvas strong {
   color: var(--ink);
   font-size: 12px;
-  font-weight: 550;
+  font-weight: var(--weight-medium);
 }
 .empty-canvas span {
-  font-size: 9px;
+  font-size: 10px;
 }
 
 .admin-inspector {
@@ -458,14 +458,14 @@
 .library-heading span,
 .inspector-heading span {
   color: var(--admin-muted);
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
 .library-heading strong,
 .inspector-heading strong {
   font-size: 12px;
-  font-weight: 600;
+  font-weight: var(--weight-medium);
 }
 .plugin-list {
   display: grid;
@@ -504,7 +504,7 @@
 }
 .plugin-card small {
   color: var(--admin-muted);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.35;
 }
 .plugin-card > svg {
@@ -525,12 +525,12 @@
 .library-note {
   margin: 6px 18px;
   color: var(--admin-muted);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.5;
 }
 .library-note code {
-  font-family: var(--font-geist-mono);
-  font-size: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
 }
 
 .inspector-heading {
@@ -561,7 +561,7 @@
   border-radius: 5px;
   background: #fff;
   color: var(--admin-muted);
-  font-size: 9px;
+  font-size: 10px;
   cursor: pointer;
 }
 .size-options button:hover {
@@ -588,15 +588,15 @@
   border-radius: 5px;
   background: var(--admin-soft);
   color: var(--admin-text);
-  font-family: var(--font-geist-mono);
-  font-size: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .endpoint-section p {
   margin: 9px 0 0;
   color: var(--admin-muted);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.45;
 }
 
@@ -688,7 +688,7 @@
   border: 2px dashed var(--ink);
   background: color-mix(in srgb, var(--ink) 8%, transparent);
   color: var(--ink);
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-mono);
   font-size: 10px;
   pointer-events: none;
 }
@@ -733,7 +733,7 @@
   border-radius: 5px;
   background: #fff;
   color: var(--admin-muted);
-  font-size: 9px;
+  font-size: 10px;
   letter-spacing: 0;
   text-transform: none;
   cursor: pointer;
@@ -744,7 +744,7 @@
 .field-note {
   margin: 12px 0 0;
   color: var(--admin-muted);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.45;
 }
 
@@ -852,7 +852,7 @@
   background: #fff;
   color: #8d2f28;
   font-size: 11px;
-  font-weight: 500;
+  font-weight: var(--weight-medium);
   cursor: pointer;
 }
 .danger-action:hover {
@@ -883,21 +883,21 @@
   border-radius: 5px;
   background: var(--admin-soft);
   color: var(--admin-text);
-  font-family: var(--font-geist-mono);
-  font-size: 9px;
+  font-family: var(--font-mono);
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .field-note code {
-  font-family: var(--font-geist-mono);
-  font-size: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
 }
 .data-status {
   display: grid;
   gap: 4px;
   margin: 14px 0 0;
   color: var(--admin-muted);
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1.45;
 }
 .data-status-error {
@@ -950,17 +950,17 @@
 }
 .city-results strong {
   font-size: 11px;
-  font-weight: 550;
+  font-weight: var(--weight-medium);
 }
 .city-results small {
   overflow: hidden;
   color: var(--admin-muted);
-  font-size: 9px;
+  font-size: 10px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .city-results-note {
   padding: 8px 9px;
   color: var(--admin-muted);
-  font-size: 9px;
+  font-size: 10px;
 }

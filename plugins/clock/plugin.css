@@ -1,17 +1,17 @@
-/* Clock: digital digits or an analog face, with the city and offset below. */
+/* Clock: digital digits, an analog face, or a map, with city and offset below. */
 
 .clock-plugin small {
-  margin-top: clamp(8px, 4cqmin, 40px);
+  margin-top: var(--space-gap);
   color: var(--faint);
-  font-size: clamp(9px, 3cqmin, 30px);
+  font-size: var(--type-meta);
   font-variant-numeric: tabular-nums;
 }
 
 .clock-digital time {
-  font-size: clamp(32px, 34cqmin, 460px);
-  font-weight: 340;
-  line-height: 0.82;
-  letter-spacing: -0.075em;
+  font-size: var(--type-display-xl);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
   font-variant-numeric: tabular-nums;
 }
 
@@ -98,9 +98,9 @@
 }
 
 .clock-map-time time {
-  font-size: clamp(28px, 20cqmin, 300px);
-  font-weight: 340;
-  line-height: 0.85;
-  letter-spacing: -0.07em;
+  font-size: var(--type-display);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
   font-variant-numeric: tabular-nums;
 }

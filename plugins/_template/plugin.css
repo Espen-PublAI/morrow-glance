@@ -1,9 +1,13 @@
 /*
- * Blocks are CSS containers, so use container units (cqmin, cqi) rather than
- * vw. Colours come from the theme: var(--ink), var(--faint), var(--paper).
+ * Size text with the block-relative tokens set on .plugin-view:
+ *   --type-display-xl, --type-display, --type-title, --type-label, --type-meta
+ *   --space-block, --space-gap
+ * and the weight/tracking tokens from globals.css. Colours come from the theme:
+ * var(--ink), var(--faint), var(--paper). Never use vw or fixed weights.
  */
 .example-plugin strong {
-  font-size: clamp(24px, 20cqmin, 240px);
-  font-weight: 400;
-  letter-spacing: -0.04em;
+  font-size: var(--type-display);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
 }

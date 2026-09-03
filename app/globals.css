@@ -37,6 +37,46 @@
 }
 
 /*
+ * Typography system. Two weights, two trackings, one mono. Sizes come in two
+ * scales: the Player chrome scales with the viewport (vmin), plugin views scale
+ * with their block (cqmin). Use the tokens or the .type-* classes; do not set
+ * ad-hoc weights or letter-spacing.
+ */
+:root {
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --tracking-display: -0.045em;
+  --tracking-label: 0.08em;
+  --leading-display: 0.88;
+  --leading-body: 1.3;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+}
+
+.type-display {
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--tracking-display);
+  line-height: var(--leading-display);
+  font-variant-numeric: tabular-nums;
+}
+.type-body {
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-body);
+}
+.type-label {
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+.type-meta {
+  font-weight: var(--weight-regular);
+  color: var(--faint);
+}
+.type-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+/*
  * Dotted dividers and the faint footer rule derive from ink so every theme matches.
  * Declared on the themed element itself: a custom property resolves var() where
  * it is declared, so putting these on :root would always use the light ink.
@@ -188,7 +228,7 @@ a {
 .missing-plugin {
   padding: 20px;
   color: var(--faint);
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-mono);
   font-size: 10px;
 }
 
@@ -219,14 +259,14 @@ a {
   height: 2.1em;
   overflow: hidden;
   color: var(--ink);
-  font-weight: 500;
-  letter-spacing: 0.01em;
+  font-weight: var(--weight-medium);
   white-space: nowrap;
   text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
 }
 .footer-tag.is-quiet {
   color: var(--faint);
-  font-weight: 400;
+  font-weight: var(--weight-regular);
 }
 .footer-tag .footer-mark {
   width: 0.65em;
@@ -279,7 +319,7 @@ a {
   border-radius: 0;
   color: var(--faint);
   font-size: inherit;
-  font-weight: 480;
+  font-weight: var(--weight-medium);
 }
 .tab-list [data-slot='tabs-trigger'][data-active] {
   color: var(--ink);
@@ -306,7 +346,7 @@ a {
   min-width: 2.6em;
   text-align: center;
   color: var(--faint);
-  font-family: var(--font-geist-mono);
+  font-family: var(--font-mono);
   font-size: 0.85em;
 }
 .player-controls button {
@@ -376,20 +416,39 @@ a {
  * these give every view the same padding, label treatment, and container units.
  */
 .plugin-view {
+  /* Block-relative type scale. Plugins should size text with these only. */
+  --type-display-xl: clamp(32px, 34cqmin, 460px);
+  --type-display: clamp(28px, 24cqmin, 320px);
+  --type-title: clamp(18px, 14cqmin, 180px);
+  --type-label: clamp(9px, 3cqmin, 30px);
+  --type-meta: clamp(9px, 3cqmin, 30px);
+  --space-block: clamp(14px, 7cqmin, 110px);
+  --space-gap: clamp(8px, 4cqmin, 40px);
   width: 100%;
   height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding: clamp(14px, 7cqmin, 110px);
+  padding: var(--space-block);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-body);
 }
 .plugin-label {
   margin-bottom: auto;
   color: var(--faint);
-  font-size: clamp(9px, 3cqmin, 30px);
-  letter-spacing: 0.08em;
+  font-size: var(--type-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
   text-transform: uppercase;
+}
+/* Secondary line under a value: city, offset, unit, source note. */
+.plugin-meta {
+  margin-top: var(--space-gap);
+  color: var(--faint);
+  font-size: var(--type-meta);
+  font-weight: var(--weight-regular);
+  font-variant-numeric: tabular-nums;
 }
 
 /* Visually hidden, still read by assistive technology. */

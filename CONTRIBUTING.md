@@ -103,6 +103,28 @@ that pick fields out of JSON.
 3. It appears in Admin's "Add…" menu under Screens. Saved configurations keep
    their own copy, so editing a preset later never changes an existing screen.
 
+## Typography
+
+One system, two weights. Do not set ad-hoc weights, letter-spacing, or pixel
+sizes in a plugin or component; use the tokens from `app/globals.css`.
+
+| Role    | Use                                                    | Tokens / class                                                |
+| ------- | ------------------------------------------------------ | ------------------------------------------------------------- |
+| Display | Large numerals and headlines: clock digits, a value    | `.type-display`, sizes `--type-display-xl` / `--type-display` |
+| Title   | Short prose set large: the text block                  | `--type-title`, weight regular                                |
+| Label   | Small caps above content: block labels, admin headings | `.plugin-label` / `.type-label`, `--type-label`               |
+| Meta    | Secondary line under a value: city, offset, unit, note | `.plugin-meta` / `.type-meta`, `--type-meta`                  |
+| Mono    | Ids, page counts, coordinates                          | `.type-mono`                                                  |
+
+Weights are `--weight-regular` (400) and `--weight-medium` (500). Tracking is
+`--tracking-display` for display sizes and `--tracking-label` for labels.
+
+Sizes come in two scales. Plugin views scale with their block through the
+container-relative tokens set on `.plugin-view` (`--type-display-xl`,
+`--type-display`, `--type-title`, `--type-label`, `--type-meta`, `--space-block`,
+`--space-gap`). Player chrome scales with the viewport. Admin uses a fixed
+scale of 10, 11, 12, and 13 px; nothing smaller.
+
 ## Changing the configuration shape
 
 `MorrowConfig` is a public format that lives in users' databases. When you add

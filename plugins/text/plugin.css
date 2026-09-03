@@ -2,9 +2,9 @@
 
 .text-plugin p {
   max-width: 24ch;
-  margin: clamp(10px, 5cqmin, 56px) 0 0;
-  font-size: clamp(18px, 14cqmin, 180px);
-  font-weight: 390;
+  margin: var(--space-gap) 0 0;
+  font-size: var(--type-title);
+  font-weight: var(--weight-regular);
   line-height: 1.02;
-  letter-spacing: -0.052em;
+  letter-spacing: -0.03em;
 }
