@@ -97,9 +97,11 @@
 }
 
 .weather-range {
-  display: flex;
-  gap: 0.6em;
-  justify-content: flex-end;
+  /* Fixed-width, right-aligned columns so one- and two-digit values line up. */
+  display: grid;
+  grid-template-columns: 3.4ch 3.4ch;
+  gap: 0.5em;
+  justify-items: end;
 }
 
 .weather-range strong {
