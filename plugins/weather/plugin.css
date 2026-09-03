@@ -14,13 +14,13 @@
 }
 
 .weather-icon.is-large {
-  width: clamp(40px, 26cqmin, 320px);
-  height: clamp(40px, 26cqmin, 320px);
+  width: clamp(40px, min(40cqmin, 16cqi), 360px);
+  height: clamp(40px, min(40cqmin, 16cqi), 360px);
 }
 
 .weather-state {
   color: var(--faint);
-  font-size: clamp(11px, 4cqmin, 40px);
+  font-size: clamp(11px, min(5cqmin, 2.6cqi), 44px);
 }
 
 /* Now: icon beside a large temperature. */

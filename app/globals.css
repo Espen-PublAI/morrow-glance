@@ -416,14 +416,20 @@ a {
  * these give every view the same padding, label treatment, and container units.
  */
 .plugin-view {
-  /* Block-relative type scale. Plugins should size text with these only. */
-  --type-display-xl: clamp(32px, 34cqmin, 460px);
-  --type-display: clamp(28px, 24cqmin, 320px);
-  --type-title: clamp(18px, 14cqmin, 180px);
-  --type-label: clamp(9px, 3cqmin, 30px);
-  --type-meta: clamp(9px, 3cqmin, 30px);
-  --space-block: clamp(14px, 7cqmin, 110px);
-  --space-gap: clamp(8px, 4cqmin, 40px);
+  /*
+   * Block-relative type scale. Plugins should size text with these only.
+   * Each size is the smaller of a height-led value (cqmin, which is the height
+   * in wide blocks) and a width-led cap (cqi), so text fills a wide block and
+   * never overflows a narrow one. Using cqmin rather than cqh keeps phones,
+   * where blocks are inline-size containers, from reading the viewport height.
+   */
+  --type-display-xl: clamp(32px, min(52cqmin, 30cqi), 520px);
+  --type-display: clamp(28px, min(40cqmin, 24cqi), 400px);
+  --type-title: clamp(18px, min(20cqmin, 9cqi), 200px);
+  --type-label: clamp(9px, min(3.6cqmin, 1.8cqi), 34px);
+  --type-meta: clamp(9px, min(3.6cqmin, 1.8cqi), 34px);
+  --space-block: clamp(14px, min(7cqmin, 3.5cqi), 110px);
+  --space-gap: clamp(8px, min(4cqmin, 2cqi), 44px);
   width: 100%;
   height: 100%;
   min-height: 0;

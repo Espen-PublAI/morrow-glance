@@ -128,7 +128,10 @@ Weights are `--weight-regular` (400) and `--weight-medium` (500). Tracking is
 Sizes come in two scales. Plugin views scale with their block through the
 container-relative tokens set on `.plugin-view` (`--type-display-xl`,
 `--type-display`, `--type-title`, `--type-label`, `--type-meta`, `--space-block`,
-`--space-gap`). Player chrome scales with the viewport. Admin uses a fixed
+`--space-gap`). Each token is the smaller of a height-led and a width-led
+value, so text fills a wide block and never overflows a narrow one; if you
+need a size the tokens do not cover, follow the same `min(Xcqmin, Ycqi)`
+shape. Player chrome scales with the viewport. Admin uses a fixed
 scale of 10, 11, 12, and 13 px; nothing smaller.
 
 ## Changing the configuration shape

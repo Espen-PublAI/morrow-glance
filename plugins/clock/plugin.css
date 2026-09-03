@@ -24,7 +24,9 @@
   flex: 1;
   min-height: 0;
   width: 100%;
-  margin: clamp(4px, 2cqmin, 24px) 0;
+  /* On phones blocks grow with content; keep the face a sensible size. */
+  max-height: 62vw;
+  margin: clamp(4px, min(2cqmin, 1cqi), 24px) 0;
   color: var(--ink);
   overflow: visible;
 }
@@ -72,7 +74,8 @@
   flex: 1;
   min-height: 0;
   width: 100%;
-  margin: clamp(6px, 3cqmin, 36px) 0;
+  max-height: 50vw;
+  margin: clamp(6px, min(3cqmin, 1.5cqi), 36px) 0;
   color: var(--ink);
   pointer-events: none;
 }

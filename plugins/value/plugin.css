@@ -20,7 +20,7 @@
 
 .value-plugin-state {
   color: var(--faint);
-  font-size: clamp(11px, 4cqmin, 40px);
+  font-size: clamp(11px, min(5cqmin, 2.6cqi), 44px);
 }
 
 .value-plugin-error {
