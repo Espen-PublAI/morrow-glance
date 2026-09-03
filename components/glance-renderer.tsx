@@ -22,11 +22,14 @@ export function GlanceRenderer({
   page,
   now,
   blockData,
+  timeZone,
 }: {
   page: GlancePage;
   now: Date;
   /** Latest data per block id, for blocks with a data source. */
   blockData?: Record<string, BlockData>;
+  /** The display's timezone, passed to every view. */
+  timeZone: string;
 }) {
   const layoutStyle: LayoutStyle = {
     '--columns': page.layout.columns,
@@ -41,6 +44,7 @@ export function GlanceRenderer({
           now,
           settings: block.settings ?? {},
           data: blockData?.[block.id],
+          timeZone,
         });
         const style: BlockStyle = {
           '--column': block.column,

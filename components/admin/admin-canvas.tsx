@@ -49,6 +49,7 @@ interface AdminCanvasProps {
   color: MorrowColor;
   now: Date;
   blockData: Record<string, BlockData>;
+  timeZone: string;
   registry: Record<string, PluginRuntime>;
   selectedBlockId: string | null;
   ghost: DragGhost | null;
@@ -81,6 +82,7 @@ export function AdminCanvas({
   color,
   now,
   blockData,
+  timeZone,
   registry,
   selectedBlockId,
   ghost,
@@ -168,6 +170,7 @@ export function AdminCanvas({
                   now,
                   settings: block.settings ?? {},
                   data: blockData[block.id],
+                  timeZone,
                 })}
               </div>
               {selected && (

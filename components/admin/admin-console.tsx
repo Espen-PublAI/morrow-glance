@@ -728,6 +728,7 @@ export function AdminConsole({
               color={config.color}
               now={now}
               blockData={blockData}
+              timeZone={config.timeZone}
               registry={pluginRegistry}
               selectedBlockId={blockId}
               ghost={drag.ghost}

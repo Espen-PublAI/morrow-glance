@@ -221,7 +221,12 @@ export function MorrowDisplay({ initialConfig }: MorrowDisplayProps) {
           {pages.map((item) => (
             <TabsContent key={item.id} value={item.id}>
               {now && (
-                <GlanceRenderer page={item} now={now} blockData={blockData} />
+                <GlanceRenderer
+                  page={item}
+                  now={now}
+                  blockData={blockData}
+                  timeZone={config.timeZone}
+                />
               )}
             </TabsContent>
           ))}

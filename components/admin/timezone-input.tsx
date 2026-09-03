@@ -2,6 +2,8 @@
 
 import { useId, useSyncExternalStore } from 'react';
 
+import { timeZoneCity } from '@/lib/morrow/format';
+
 const NO_ZONES: string[] = [];
 let cachedZones: string[] | null = null;
 
@@ -50,15 +52,16 @@ export function TimeZoneInput({
         list={zones.length > 0 ? listId : undefined}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder ?? 'Europe/Oslo'}
+        placeholder={placeholder ?? 'Type a city'}
         autoComplete="off"
         spellCheck={false}
       />
       {zones.length > 0 && (
         <datalist id={listId}>
           {zones.map((zone) => (
+            // The label is the city, so typing "Tokyo" finds Asia/Tokyo.
             <option key={zone} value={zone}>
-              {zone}
+              {timeZoneCity(zone)}
             </option>
           ))}
         </datalist>

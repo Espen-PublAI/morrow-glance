@@ -1,6 +1,13 @@
-/* Clock: a large time with an optional label above and the zone below. */
+/* Clock: digital digits or an analog face, with the city and offset below. */
 
-.clock-plugin time {
+.clock-plugin small {
+  margin-top: clamp(8px, 4cqmin, 40px);
+  color: var(--faint);
+  font-size: clamp(9px, 3cqmin, 30px);
+  font-variant-numeric: tabular-nums;
+}
+
+.clock-digital time {
   font-size: clamp(32px, 34cqmin, 460px);
   font-weight: 340;
   line-height: 0.82;
@@ -8,8 +15,50 @@
   font-variant-numeric: tabular-nums;
 }
 
-.clock-plugin small {
-  margin-top: clamp(8px, 4cqmin, 40px);
-  color: var(--faint);
-  font-size: clamp(9px, 3cqmin, 30px);
+/* Analog: the face takes the space between the label and the footnote. */
+.clock-analog {
+  justify-content: space-between;
+}
+
+.clock-analog svg {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  margin: clamp(4px, 2cqmin, 24px) 0;
+  color: var(--ink);
+  overflow: visible;
+}
+
+.clock-face {
+  fill: none;
+  stroke: var(--divider);
+  stroke-width: 0.9;
+}
+
+.clock-tick {
+  stroke: var(--faint);
+  stroke-width: 0.9;
+  stroke-linecap: round;
+}
+
+.clock-tick.is-quarter {
+  stroke: currentColor;
+  stroke-width: 1.4;
+}
+
+.clock-hand {
+  stroke: currentColor;
+  stroke-linecap: round;
+}
+
+.clock-hand.is-hour {
+  stroke-width: 3.2;
+}
+
+.clock-hand.is-minute {
+  stroke-width: 2;
+}
+
+.clock-centre {
+  fill: currentColor;
 }

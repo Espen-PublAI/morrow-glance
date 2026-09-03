@@ -131,6 +131,8 @@ export interface PluginManifest {
 export interface PluginViewProps {
   now: Date;
   settings: PluginSettings;
+  /** The display's own timezone, so views can relate other zones to it. */
+  timeZone: string;
   /** Present when the block has a data source and something has been stored. */
   data?: BlockData;
 }

@@ -119,7 +119,7 @@ plugins/
   _template/  copy me to start a new plugin
 ```
 
-Views are ordinary React components that receive the current time, the block's settings, and, when the block has a data source, its latest `data`. Set `acceptsData: true` in the manifest to let Admin offer poll and webhook sources for the plugin. They render inside a CSS container, so size text with container units such as `cqmin` rather than `vw`; the same view then scales correctly in the Player and on the Admin canvas. Use the `plugin-view` and `plugin-label` classes for the shared padding and label style.
+Views are ordinary React components that receive the current time, the display's timezone, the block's settings, and, when the block has a data source, its latest `data`. Set `acceptsData: true` in the manifest to let Admin offer poll and webhook sources for the plugin. They render inside a CSS container, so size text with container units such as `cqmin` rather than `vw`; the same view then scales correctly in the Player and on the Admin canvas. Use the `plugin-view` and `plugin-label` classes for the shared padding and label style.
 
 ```tsx
 import { Sparkles } from 'lucide-react';
@@ -198,7 +198,7 @@ plugins/                     Installed plugins and their views
 morrow.config.ts             Clean-install fallback configuration
 ```
 
-The initial plugin library contains only real system primitives: a clock, a user-authored text block, and a Value block that shows one field from live data. `plugins/_template/` is a starting point for new ones.
+The initial plugin library contains only real system primitives: a world clock with digital and analog faces, a user-authored text block, and a Value block that shows one field from live data. `plugins/_template/` is a starting point for new ones.
 
 ## Direction
 
