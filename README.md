@@ -1,6 +1,6 @@
 # Morrow Glance
 
-A calm, open-source ambient display for browsers: wall TVs, tablets, kiosk screens. Inspired by TRMNL, Linear, and reMarkable.
+A calm, open-source ambient display for browsers: wall TVs, tablets, kiosk screens.
 
 Morrow keeps content, layout, and output separate:
 
