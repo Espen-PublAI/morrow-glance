@@ -368,13 +368,25 @@ export async function fetchGitHub(
   const rawRepo = readStringSetting(settings, 'repo');
   const user = rawUser ? normaliseUser(rawUser) : null;
   const repoName = rawRepo ? parseRepoName(rawRepo) : null;
-  if (rawUser && !user) throw new Error('That is not a valid GitHub username.');
+
+  // An unusable entry in one field becomes a warning, not a failure. Both
+  // fields are optional and feed different views, so a typo in the repository
+  // must not hide the contribution heatmap for a perfectly good username.
+  const fieldWarnings: string[] = [];
+  if (rawUser && !user) {
+    fieldWarnings.push(
+      `Activity: "${rawUser}" is not a valid GitHub username.`,
+    );
+  }
   if (rawRepo && !repoName) {
-    throw new Error('Enter the repository as owner/name.');
+    fieldWarnings.push(
+      `Repository: "${rawRepo}" needs an owner, as in ${user ?? 'owner'}/${rawRepo}.`,
+    );
   }
   if (!user && !repoName) {
     throw new Error(
-      'Enter a GitHub username, a repository as owner/name, or both.',
+      fieldWarnings[0]?.replace(/^\w+: /, '') ??
+        'Enter a GitHub username, a repository as owner/name, or both.',
     );
   }
   const token =
@@ -385,7 +397,7 @@ export async function fetchGitHub(
     repo: null,
     events: null,
     contributions: null,
-    warnings: [],
+    warnings: fieldWarnings,
     authenticated: Boolean(token),
     fetchedAt: context.now.toISOString(),
   };

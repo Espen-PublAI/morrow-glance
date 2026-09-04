@@ -1016,3 +1016,9 @@
 .footer-toggles .field-label {
   margin-top: 0;
 }
+
+/* A secret typed but not yet stored: the header Save does not include it. */
+.field-note.is-warning {
+  color: var(--ink);
+  font-weight: var(--weight-medium);
+}

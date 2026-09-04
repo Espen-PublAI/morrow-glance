@@ -1,10 +1,11 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import contributionsFixture from './contributions.json';
 import eventsFixture from './events.json';
 import repoFixture from './repo.json';
 import {
   contributionLevel,
+  fetchGitHub,
   isGitHubData,
   normaliseUser,
   parseContributions,
@@ -50,6 +51,49 @@ describe('settings', () => {
     expect(parseRepoName('a/b/c')).toBeNull();
     expect(parseRepoName('a/b c')).toBeNull();
     expect(parseRepoName('')).toBeNull();
+  });
+});
+
+describe('a typo in one field does not hide the others', () => {
+  const context = {
+    env: {},
+    timeZone: 'Europe/Oslo',
+    now: new Date('2026-09-04T12:00:00Z'),
+    secrets: {},
+  };
+
+  it('warns about an unparseable repository and still fetches the user', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      calls.push(url);
+      return new Response(JSON.stringify(eventsFixture), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      });
+    });
+    const data = await fetchGitHub(
+      { user: 'Espen-PublAI', repo: 'Aptide-ai' },
+      context,
+    );
+    expect(data.events).not.toBeNull();
+    expect(data.warnings).toEqual([
+      'Repository: "Aptide-ai" needs an owner, as in Espen-PublAI/Aptide-ai.',
+    ]);
+    // Nothing was requested for the unparseable repository.
+    expect(calls.some((url) => url.includes('/repos/'))).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it('fails only when no field is usable', async () => {
+    await expect(fetchGitHub({ repo: 'Aptide-ai' }, context)).rejects.toThrow(
+      /needs an owner/,
+    );
+    await expect(fetchGitHub({}, context)).rejects.toThrow(
+      /Enter a GitHub username/,
+    );
+    await expect(fetchGitHub({ user: 'bad--name' }, context)).rejects.toThrow(
+      /not a valid GitHub username/,
+    );
   });
 });
 

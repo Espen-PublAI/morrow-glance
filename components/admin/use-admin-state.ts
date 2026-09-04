@@ -70,10 +70,14 @@ function initialSettings(
   timeZone: string,
 ): PluginSettings {
   return Object.fromEntries(
-    (manifest.settings ?? []).map((setting) => [
-      setting.id,
-      setting.type === 'timezone' ? timeZone : (setting.defaultValue ?? ''),
-    ]),
+    (manifest.settings ?? [])
+      // Secrets live on the server, keyed by block id. Seeding an empty key
+      // here would suggest the configuration carries them.
+      .filter((setting) => setting.type !== 'secret')
+      .map((setting) => [
+        setting.id,
+        setting.type === 'timezone' ? timeZone : (setting.defaultValue ?? ''),
+      ]),
   );
 }
 

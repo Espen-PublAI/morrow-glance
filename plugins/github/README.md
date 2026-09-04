@@ -34,6 +34,20 @@ Create a fine-grained token at github.com/settings/tokens with no repository
 access if you only want public data. Grant read access to the repositories
 you want private activity for. Nothing in this plugin writes.
 
+## If a block shows nothing
+
+Two things catch people out.
+
+**The token has its own Save.** It is stored through the secrets API, keyed to
+the block, and is deliberately never part of the configuration. So the Save
+button at the top of Admin does not include it: press the Save beside the
+token field, or hit Enter in it. The note under the field says so while a
+value is waiting.
+
+**The repository field wants `owner/name`.** `morrow-glance` alone is not
+enough; `Espen-PublAI/morrow-glance` is. A bad entry here is reported as a
+warning and no longer stops the other views from loading.
+
 ## Data
 
 Morrow Server fetches every five minutes while a screen shows the block, and

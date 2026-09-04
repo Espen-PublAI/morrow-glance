@@ -122,13 +122,19 @@ export function SecretInput({
           </button>
         )}
       </div>
-      <p className="field-note">
-        {message ||
-          (isSet === null
-            ? 'Checking…'
-            : isSet
-              ? 'Stored on Morrow Server for this block only; never shown again and never part of the configuration.'
-              : 'Not set. Stored on Morrow Server for this block only, outside the configuration.')}
+      <p
+        className={
+          draft.trim() && !busy ? 'field-note is-warning' : 'field-note'
+        }
+      >
+        {draft.trim() && !busy
+          ? 'Not stored yet. Press Save beside this field; the Save button at the top of Admin does not include it.'
+          : message ||
+            (isSet === null
+              ? 'Checking…'
+              : isSet
+                ? 'Stored on Morrow Server for this block only; never shown again and never part of the configuration.'
+                : 'Not set. Stored on Morrow Server for this block only, outside the configuration.')}
       </p>
     </div>
   );
