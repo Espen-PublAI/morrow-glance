@@ -47,6 +47,27 @@ export interface ActivityEvent {
   tag?: string;
 }
 
+/** The repository's own week-by-week commits, every contributor included. */
+export interface CommitActivity {
+  /** Oldest week first. Seven counts per week, Sunday first. */
+  weeks: number[][];
+  total: number;
+  from: string;
+  to: string;
+}
+
+export interface TopContributor {
+  login: string;
+  /** All-time commits to the default branch, which is what GitHub reports. */
+  commits: number;
+}
+
+export interface RepoContributors {
+  /** Null when the count could not be determined. */
+  total: number | null;
+  top: TopContributor[];
+}
+
 export interface Contributions {
   total: number;
   /** Oldest week first. Seven counts per week, Sunday first; -1 = outside the range. */
@@ -59,7 +80,11 @@ export interface GitHubData {
   user: string | null;
   repo: RepoPulse | null;
   events: ActivityEvent[] | null;
+  /** One person's contribution calendar. Needs a token. */
   contributions: Contributions | null;
+  /** The repository's commits by week, all contributors. No token needed. */
+  commitActivity: CommitActivity | null;
+  topContributors: RepoContributors | null;
   /** Parts that were asked for but could not be fetched, in plain language. */
   warnings: string[];
   authenticated: boolean;
@@ -171,6 +196,55 @@ export function parseEvents(json: unknown): ActivityEvent[] {
     events.push(event);
   }
   return events;
+}
+
+/**
+ * `/stats/commit_activity` gives the last 52 weeks as `{ week, total, days }`
+ * with `days` running Sunday to Saturday, which is already the shape the dot
+ * grid wants.
+ */
+export function parseCommitActivity(json: unknown): CommitActivity {
+  if (!Array.isArray(json) || json.length === 0) {
+    throw new Error('GitHub returned no commit activity.');
+  }
+  let total = 0;
+  let from = '';
+  let to = '';
+  const weeks = json.map((raw) => {
+    const week = rec(raw);
+    const days = Array.isArray(week.days) ? week.days : [];
+    const row = Array.from({ length: 7 }, (_, day) => num(days[day]));
+    total += row.reduce((sum, count) => sum + count, 0);
+    // `week` is the Unix timestamp of that week's Sunday.
+    const start = num(week.week, NaN);
+    if (Number.isFinite(start)) {
+      const sunday = new Date(start * 1000);
+      const saturday = new Date((start + 6 * 86_400) * 1000);
+      const iso = (date: Date) => date.toISOString().slice(0, 10);
+      if (!from || iso(sunday) < from) from = iso(sunday);
+      if (!to || iso(saturday) > to) to = iso(saturday);
+    }
+    return row;
+  });
+  return { weeks, total, from, to };
+}
+
+/** `/contributors` is ordered by commits, so the first entries are the top. */
+export function parseContributors(
+  json: unknown,
+  total: number | null,
+): RepoContributors {
+  if (!Array.isArray(json)) {
+    throw new Error('GitHub returned unexpected contributors.');
+  }
+  const top: TopContributor[] = [];
+  for (const raw of json) {
+    const source = rec(raw);
+    const login = str(source.login);
+    if (!login) continue;
+    top.push({ login, commits: num(source.contributions) });
+  }
+  return { total: total ?? (top.length > 0 ? top.length : null), top };
 }
 
 export function parseContributions(json: unknown): Contributions {
@@ -328,6 +402,71 @@ async function fetchRepo(
   return parseRepo(await readJson(repoResponse), openPulls);
 }
 
+/**
+ * The statistics endpoints answer 202 with an empty body while GitHub computes
+ * them in the background, which happens on the first request for a repository.
+ * One retry covers the common case; beyond that the next poll will get it,
+ * five minutes being sooner than it is worth blocking a fetch for.
+ */
+async function requestStats(
+  url: string,
+  token: string | undefined,
+): Promise<unknown> {
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const response = await request(url, token);
+    if (response.status === 404)
+      throw new Error('Repository not found on GitHub.');
+    if (response.status === 202) {
+      if (attempt === 0) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        continue;
+      }
+      throw new Error(
+        'GitHub is still working out this repository’s statistics; they appear on the next refresh.',
+      );
+    }
+    if (!response.ok) throw new Error(`GitHub answered ${response.status}.`);
+    return readJson(response);
+  }
+  throw new Error('GitHub did not return statistics.');
+}
+
+async function fetchCommitActivity(
+  { owner, name }: { owner: string; name: string },
+  token: string | undefined,
+): Promise<CommitActivity> {
+  return parseCommitActivity(
+    await requestStats(
+      `${API}/repos/${owner}/${name}/stats/commit_activity`,
+      token,
+    ),
+  );
+}
+
+/**
+ * The top contributors, from the list endpoint rather than
+ * `/stats/contributors`: that one carries every contributor's full weekly
+ * history and runs to twelve megabytes on a busy repository, for a handful of
+ * names and totals.
+ */
+async function fetchContributors(
+  { owner, name }: { owner: string; name: string },
+  token: string | undefined,
+): Promise<RepoContributors> {
+  const base = `${API}/repos/${owner}/${name}/contributors`;
+  const [listResponse, countResponse] = await Promise.all([
+    request(`${base}?per_page=5`, token),
+    request(`${base}?per_page=1`, token),
+  ]);
+  if (listResponse.status === 204) return { total: 0, top: [] };
+  if (!listResponse.ok)
+    throw new Error(`GitHub answered ${listResponse.status}.`);
+  const total = countResponse.ok
+    ? parseLastPage(countResponse.headers.get('link'))
+    : null;
+  return parseContributors(await readJson(listResponse), total);
+}
+
 const CONTRIBUTIONS_QUERY = `query($login: String!) {
   user(login: $login) {
     contributionsCollection {
@@ -397,6 +536,8 @@ export async function fetchGitHub(
     repo: null,
     events: null,
     contributions: null,
+    commitActivity: null,
+    topContributors: null,
     warnings: fieldWarnings,
     authenticated: Boolean(token),
     fetchedAt: context.now.toISOString(),
@@ -429,11 +570,23 @@ export async function fetchGitHub(
       attempt('Repository', async () => {
         data.repo = await fetchRepo(repoName, token);
       }),
+      attempt('Commit activity', async () => {
+        data.commitActivity = await fetchCommitActivity(repoName, token);
+      }),
+      attempt('Contributors', async () => {
+        data.topContributors = await fetchContributors(repoName, token);
+      }),
     );
   }
   await Promise.all(tasks);
 
-  if (!data.events && !data.contributions && !data.repo) {
+  if (
+    !data.events &&
+    !data.contributions &&
+    !data.repo &&
+    !data.commitActivity &&
+    !data.topContributors
+  ) {
     const first = data.warnings[0] ?? 'GitHub returned nothing.';
     throw new Error(first.replace(/^[A-Za-z]+: /, ''));
   }

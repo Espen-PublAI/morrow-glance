@@ -13,10 +13,11 @@
 
 /* Contributions: the year as a grid of dots, the same language as the map. */
 .github-heatmap {
-  flex: 1 1 auto;
+  /* A year is 53 columns by 7 rows, so the grid is about eight times wider
+     than it is tall. Growing into spare height would only strand it in an
+     empty band, so it takes the height its aspect actually needs. */
+  flex: 0 1 auto;
   min-height: 0;
-  display: flex;
-  align-items: center;
 }
 
 .github-heatmap svg {
@@ -124,4 +125,29 @@
   font-size: var(--type-meta);
   letter-spacing: var(--tracking-label);
   text-transform: uppercase;
+}
+
+/* Top contributors: one line of names and commit counts. */
+.github-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(8px, 4cqmin, 40px);
+  margin-top: var(--space-gap);
+  font-size: clamp(10px, min(4.6cqmin, 2.4cqi), 40px);
+  font-variant-numeric: tabular-nums;
+}
+
+.github-top li {
+  display: flex;
+  gap: 0.4em;
+  align-items: baseline;
+  white-space: nowrap;
+}
+
+.github-top strong {
+  font-weight: var(--weight-regular);
+}
+
+.github-top span {
+  color: var(--faint);
 }

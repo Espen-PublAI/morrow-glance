@@ -26,6 +26,43 @@ function readLabels({ settings }: PluginViewProps) {
   return { user, repo, label };
 }
 
+/**
+ * A year as a grid of dots: 7 rows of weekdays, one column per week, sized by
+ * how busy the day was. The same visual language as the world map, and shared
+ * by the person's calendar and the repository's commits.
+ */
+function DotGrid({ weeks }: { weeks: number[][] }) {
+  const max = Math.max(0, ...weeks.flat());
+  const width = weeks.length * CELL;
+  const height = 7 * CELL;
+  return (
+    <div className="github-heatmap">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="xMinYMid meet"
+        aria-hidden="true"
+        focusable="false"
+      >
+        {weeks.map((week, w) =>
+          week.map((count, d) => {
+            if (count < 0) return null;
+            const level = contributionLevel(count, max);
+            return (
+              <circle
+                key={`${w}-${d}`}
+                className={`is-l${level}`}
+                cx={w * CELL + CELL / 2}
+                cy={d * CELL + CELL / 2}
+                r={RADII[level]}
+              />
+            );
+          }),
+        )}
+      </svg>
+    </div>
+  );
+}
+
 function Frame({
   label,
   children,
@@ -105,38 +142,12 @@ function HeatmapView(props: PluginViewProps) {
       />
     );
   }
-  const max = Math.max(0, ...calendar.weeks.flat());
-  const width = calendar.weeks.length * CELL;
-  const height = 7 * CELL;
   return (
     <Frame
       label={label}
       meta={`${calendar.total.toLocaleString('en-GB')} contributions in the last year`}
     >
-      <div className="github-heatmap">
-        <svg
-          viewBox={`0 0 ${width} ${height}`}
-          preserveAspectRatio="xMinYMid meet"
-          aria-hidden="true"
-          focusable="false"
-        >
-          {calendar.weeks.map((week, w) =>
-            week.map((count, d) => {
-              if (count < 0) return null;
-              const level = contributionLevel(count, max);
-              return (
-                <circle
-                  key={`${w}-${d}`}
-                  className={`is-l${level}`}
-                  cx={w * CELL + CELL / 2}
-                  cy={d * CELL + CELL / 2}
-                  r={RADII[level]}
-                />
-              );
-            }),
-          )}
-        </svg>
-      </div>
+      <DotGrid weeks={calendar.weeks} />
     </Frame>
   );
 }
@@ -233,31 +244,81 @@ function RepoView(props: PluginViewProps) {
   );
 }
 
+function CommitsView(props: PluginViewProps) {
+  const { repo: repoSetting } = readLabels(props);
+  const result = ready(props, repoSetting || 'Repository');
+  if ('state' in result) return result.state;
+  const { data, label } = result;
+  const activity = data.commitActivity;
+  const people = data.topContributors;
+  const pending = data.warnings.find((warning) =>
+    warning.startsWith('Commit activity'),
+  );
+
+  // Show whatever arrived. GitHub computes these statistics lazily, so the
+  // graph and the contributors can turn up on different polls, and a block
+  // that blanked itself until both were ready would look broken for minutes.
+  if (!activity && (!people || people.top.length === 0)) {
+    return (
+      <State
+        label={label}
+        text={pending ?? 'Enter a repository as owner/name'}
+      />
+    );
+  }
+
+  const meta = [
+    activity
+      ? `${activity.total.toLocaleString('en-GB')} commits in the last year`
+      : 'Commit graph on the way',
+    people?.total ? `${compactNumber(people.total)} contributors` : '',
+  ]
+    .filter(Boolean)
+    .join(' \u00b7 ');
+
+  return (
+    <Frame label={label} meta={meta}>
+      {activity && <DotGrid weeks={activity.weeks} />}
+      {people && people.top.length > 0 && (
+        <ol className="github-top">
+          {people.top.slice(0, 4).map((person) => (
+            <li key={person.login}>
+              <strong>{person.login}</strong>
+              <span>{compactNumber(person.commits)}</span>
+            </li>
+          ))}
+        </ol>
+      )}
+    </Frame>
+  );
+}
+
 export const plugin = definePlugin({
   manifest: {
     id: 'morrow.github',
     name: 'GitHub',
     version: '0.1.0',
     description:
-      'Contribution heatmap, recent activity, or the pulse of one repository.',
+      'A repository\u2019s commit activity and contributors, or one person\u2019s contributions and activity.',
     refreshSeconds: 300,
     views: [
-      { id: 'heatmap', name: 'Contributions' },
-      { id: 'activity', name: 'Activity' },
-      { id: 'repo', name: 'Repository' },
+      { id: 'commits', name: 'Repository: commit activity' },
+      { id: 'repo', name: 'Repository: stars and open work' },
+      { id: 'heatmap', name: 'Person: contributions' },
+      { id: 'activity', name: 'Person: activity' },
     ],
     settings: [
-      {
-        id: 'user',
-        label: 'GitHub username',
-        type: 'text',
-        placeholder: 'For contributions and activity',
-      },
       {
         id: 'repo',
         label: 'Repository',
         type: 'text',
-        placeholder: 'owner/name, for the repository view',
+        placeholder: 'owner/name, for the two repository views',
+      },
+      {
+        id: 'user',
+        label: 'GitHub username',
+        type: 'text',
+        placeholder: 'For the two person views',
       },
       {
         id: 'token',
@@ -277,5 +338,10 @@ export const plugin = definePlugin({
     serverFetch: true,
   },
   icon: GitBranch,
-  views: { heatmap: HeatmapView, activity: ActivityView, repo: RepoView },
+  views: {
+    commits: CommitsView,
+    repo: RepoView,
+    heatmap: HeatmapView,
+    activity: ActivityView,
+  },
 });

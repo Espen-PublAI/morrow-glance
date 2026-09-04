@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import commitActivityFixture from './commit-activity.json';
 import contributionsFixture from './contributions.json';
+import contributorsFixture from './contributors.json';
 import eventsFixture from './events.json';
 import repoFixture from './repo.json';
 import {
   contributionLevel,
   fetchGitHub,
+  parseCommitActivity,
+  parseContributors,
   isGitHubData,
   normaliseUser,
   parseContributions,
@@ -95,6 +99,53 @@ describe('a typo in one field does not hide the others', () => {
       /not a valid GitHub username/,
     );
   });
+});
+
+describe('statistics that GitHub computes lazily', () => {
+  const context = {
+    env: {},
+    timeZone: 'Europe/Oslo',
+    now: new Date('2026-09-04T12:00:00Z'),
+    secrets: {},
+  };
+
+  it('retries a 202 once, then succeeds', async () => {
+    let statsCalls = 0;
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/stats/commit_activity')) {
+        statsCalls += 1;
+        return statsCalls === 1
+          ? new Response('{}', { status: 202 })
+          : Response.json(commitActivityFixture);
+      }
+      if (url.includes('/contributors'))
+        return Response.json(contributorsFixture);
+      return Response.json(repoFixture);
+    });
+    const data = await fetchGitHub({ repo: 'github/docs' }, context);
+    expect(statsCalls).toBe(2);
+    expect(data.commitActivity?.weeks).toHaveLength(52);
+    expect(data.warnings).toEqual([]);
+    vi.unstubAllGlobals();
+  }, 10_000);
+
+  it('explains a persistent 202 without losing the other parts', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/stats/commit_activity')) {
+        return new Response('{}', { status: 202 });
+      }
+      if (url.includes('/contributors'))
+        return Response.json(contributorsFixture);
+      return Response.json(repoFixture);
+    });
+    const data = await fetchGitHub({ repo: 'github/docs' }, context);
+    expect(data.commitActivity).toBeNull();
+    expect(data.warnings.join(' ')).toMatch(/still working out/);
+    // The stars and the contributors came back regardless.
+    expect(data.repo?.fullName).toBe('github/docs');
+    expect(data.topContributors?.top.length).toBeGreaterThan(0);
+    vi.unstubAllGlobals();
+  }, 10_000);
 });
 
 describe('repository', () => {
@@ -198,6 +249,76 @@ describe('events', () => {
       parseEvents([{ type: 'PushEvent' }, ...eventsFixture.slice(0, 2)]),
     ).toHaveLength(2);
     expect(() => parseEvents({ not: 'an array' })).toThrow(/unexpected/);
+  });
+});
+
+describe('repository commit activity, all contributors', () => {
+  const activity = parseCommitActivity(commitActivityFixture);
+
+  it('reads the year as weeks of seven days, Sunday first', () => {
+    expect(activity.weeks).toHaveLength(52);
+    for (const week of activity.weeks) expect(week).toHaveLength(7);
+    // Every day is a real count; there are no out-of-range placeholders here,
+    // unlike a person's calendar which starts mid-week.
+    expect(activity.weeks.flat().every((count) => count >= 0)).toBe(true);
+  });
+
+  it('totals the commits and spans a year of dates', () => {
+    const expected = commitActivityFixture.reduce(
+      (sum, week) => sum + week.total,
+      0,
+    );
+    expect(activity.total).toBe(expected);
+    expect(activity.total).toBeGreaterThan(0);
+    expect(activity.from < activity.to).toBe(true);
+    const days =
+      (Date.parse(activity.to) - Date.parse(activity.from)) / 86_400_000;
+    expect(days).toBeGreaterThan(355);
+    expect(days).toBeLessThan(372);
+  });
+
+  it('sums the day counts rather than trusting the weekly total', () => {
+    const one = parseCommitActivity([
+      { week: 1_788_048_000, total: 999, days: [0, 1, 2, 3, 4, 5, 6] },
+    ]);
+    expect(one.total).toBe(21);
+    expect(one.weeks[0]).toEqual([0, 1, 2, 3, 4, 5, 6]);
+  });
+
+  it('pads a short days array and refuses an empty response', () => {
+    expect(
+      parseCommitActivity([{ week: 1_788_048_000, days: [4, 5] }]).weeks[0],
+    ).toEqual([4, 5, 0, 0, 0, 0, 0]);
+    expect(() => parseCommitActivity([])).toThrow(/no commit activity/);
+    expect(() => parseCommitActivity({})).toThrow(/no commit activity/);
+  });
+});
+
+describe('repository contributors', () => {
+  it('keeps the order GitHub gives, which is busiest first', () => {
+    const people = parseContributors(contributorsFixture, 427);
+    expect(people.total).toBe(427);
+    expect(people.top.map((p) => p.login)).toEqual(
+      contributorsFixture.map((c) => c.login),
+    );
+    expect(people.top[0]?.commits).toBeGreaterThan(people.top[4]?.commits ?? 0);
+  });
+
+  it('falls back to the number it can see when the count is unknown', () => {
+    expect(parseContributors(contributorsFixture, null).total).toBe(5);
+    expect(parseContributors([], null).total).toBeNull();
+  });
+
+  it('skips entries with no login and refuses a non-list', () => {
+    expect(
+      parseContributors(
+        [{ contributions: 5 }, { login: 'a', contributions: 2 }],
+        null,
+      ).top,
+    ).toEqual([{ login: 'a', commits: 2 }]);
+    expect(() => parseContributors({}, null)).toThrow(
+      /unexpected contributors/,
+    );
   });
 });
 

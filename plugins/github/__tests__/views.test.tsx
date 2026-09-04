@@ -4,8 +4,15 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import type { BlockData, PluginSettings } from '@/lib/morrow/types';
 
+import commitActivityFixture from './commit-activity.json';
 import contributionsFixture from './contributions.json';
-import { parseContributions, type GitHubData } from '../github';
+import contributorsFixture from './contributors.json';
+import {
+  parseCommitActivity,
+  parseContributions,
+  parseContributors,
+  type GitHubData,
+} from '../github';
 import { plugin } from '../plugin';
 
 /**
@@ -26,6 +33,8 @@ function stored(over: Partial<GitHubData>): BlockData {
       repo: null,
       events: null,
       contributions: null,
+      commitActivity: null,
+      topContributors: null,
       warnings: [],
       authenticated: true,
       fetchedAt: now.toISOString(),
@@ -90,6 +99,78 @@ describe('contributions view', () => {
       stored({ warnings: ['Contributions: GitHub rejected the token.'] }),
     );
     expect(screen.getByText(/rejected the token/i)).toBeTruthy();
+  });
+});
+
+describe('repository commit activity', () => {
+  const activity = parseCommitActivity(commitActivityFixture);
+  const people = parseContributors(contributorsFixture, 427);
+  const repoSettings = { user: '', repo: 'github/docs' };
+
+  it('draws the repository year and names the busiest contributors', () => {
+    const { container } = show(
+      'commits',
+      stored({ commitActivity: activity, topContributors: people }),
+      repoSettings,
+    );
+    expect(container.querySelectorAll('.github-heatmap circle')).toHaveLength(
+      52 * 7,
+    );
+    expect(
+      screen.getByText(/10,474 commits in the last year · 427 contributors/),
+    ).toBeTruthy();
+    expect(screen.getByText('Octomerger')).toBeTruthy();
+    // 15,994 rounds to 16k rather than 16.0k, which reads better on a wall.
+    expect(screen.getByText('16k')).toBeTruthy();
+  });
+
+  it('shows the graph alone when GitHub has not worked out the contributors', () => {
+    const { container } = show(
+      'commits',
+      stored({
+        commitActivity: activity,
+        topContributors: { total: null, top: [] },
+      }),
+      repoSettings,
+    );
+    expect(
+      container.querySelectorAll('.github-heatmap circle').length,
+    ).toBeGreaterThan(0);
+    expect(screen.getByText('10,474 commits in the last year')).toBeTruthy();
+    expect(container.querySelector('.github-top')).toBeNull();
+  });
+
+  it('shows the contributors when the graph is still being computed', () => {
+    const { container } = show(
+      'commits',
+      stored({
+        commitActivity: null,
+        topContributors: people,
+        warnings: [
+          'Commit activity: GitHub is still working out this repository.',
+        ],
+      }),
+      repoSettings,
+    );
+    // The part that arrived is on screen rather than discarded.
+    expect(screen.getByText('Octomerger')).toBeTruthy();
+    expect(
+      screen.getByText(/Commit graph on the way · 427 contributors/),
+    ).toBeTruthy();
+    expect(container.querySelector('.github-heatmap')).toBeNull();
+  });
+
+  it('explains itself when nothing arrived at all', () => {
+    show(
+      'commits',
+      stored({
+        warnings: [
+          'Commit activity: GitHub is still working out this repository.',
+        ],
+      }),
+      repoSettings,
+    );
+    expect(screen.getByText(/still working out/)).toBeTruthy();
   });
 });
 

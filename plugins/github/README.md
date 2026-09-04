@@ -1,17 +1,24 @@
 # GitHub
 
-Contribution heatmap, recent activity, or the pulse of one repository.
+A repository's commit activity and contributors, or one person's contributions
+and recent events.
 
-| View          | Shows                                                                 | Needs a token     |
-| ------------- | --------------------------------------------------------------------- | ----------------- |
-| Contributions | The last year as a grid of dots, and the total                        | Yes               |
-| Activity      | Recent events in plain language: pushes, pull requests, issues, stars | No, but see below |
-| Repository    | Stars, forks, open issues, open pull requests, last push              | No                |
+Two views describe a repository and two describe a person.
+
+| View                            | Shows                                                                                     | Whose                | Needs a token     |
+| ------------------------------- | ----------------------------------------------------------------------------------------- | -------------------- | ----------------- |
+| Repository: commit activity     | The repository's last year as a grid of dots, total commits, and the busiest contributors | Everyone who commits | No                |
+| Repository: stars and open work | Stars, forks, open issues, open pull requests, last push                                  | The repository       | No                |
+| Person: contributions           | One person's last year as a grid of dots, and their total                                 | One account          | Yes               |
+| Person: activity                | Recent events in plain language: pushes, pull requests, issues, stars                     | One account          | No, but see below |
+
+To see how a project is doing, use **Repository: commit activity**. It counts
+everybody's commits, not just yours, and needs no token.
 
 ## Settings
 
-- **GitHub username** for the Contributions and Activity views.
-- **Repository** as `owner/name` for the Repository view. A pasted GitHub URL works too.
+- **Repository** as `owner/name` for the two repository views. A pasted GitHub URL works too.
+- **GitHub username** for the two person views.
 - **Personal access token**, stored as a per-block secret and never sent to a
   Player. Alternatively set `MORROW_GITHUB_TOKEN` on Morrow Server for every
   block at once.
@@ -19,8 +26,9 @@ Contribution heatmap, recent activity, or the pulse of one repository.
 
 ## Why a token
 
-GitHub's contribution calendar is only available through GraphQL, which
-refuses unauthenticated requests, so the Contributions view needs one.
+GitHub's per-person contribution calendar is only available through GraphQL,
+which refuses unauthenticated requests, so **Person: contributions** needs
+one. A repository's commit activity comes from a REST endpoint and does not.
 
 The other views work without a token, with two caveats. First, the public
 events feed excludes anything that happened in a private repository and can
@@ -33,6 +41,19 @@ the budget with it, so a token is effectively required there.
 Create a fine-grained token at github.com/settings/tokens with no repository
 access if you only want public data. Grant read access to the repositories
 you want private activity for. Nothing in this plugin writes.
+
+## Statistics GitHub computes lazily
+
+Commit activity and the contributor list are cached statistics. The first
+request for a repository is answered with `202 Accepted` and an empty body
+while GitHub works them out in the background. The plugin retries once, then
+reports that they are on the way and picks them up on the next poll rather
+than blocking a fetch.
+
+The two arrive independently, so a block may show the contributors before the
+graph, or the other way round; it shows whichever has arrived. A brand-new
+repository can return an empty contributor list for a while even with commits
+present, and the block then shows the graph alone.
 
 ## If a block shows nothing
 

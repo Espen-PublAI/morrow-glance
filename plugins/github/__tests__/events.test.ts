@@ -136,5 +136,8 @@ describe('compact numbers', () => {
     expect(compactNumber(20778)).toBe('20.8k');
     expect(compactNumber(68557)).toBe('68.6k');
     expect(compactNumber(120000)).toBe('120k');
+    // A trailing .0 is dropped: 16k, not 16.0k.
+    expect(compactNumber(15994)).toBe('16k');
+    expect(compactNumber(16049)).toBe('16k');
   });
 });
