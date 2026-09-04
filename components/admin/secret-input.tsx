@@ -58,7 +58,7 @@ export function SecretInput({
       );
       setIsSet(names.includes(name));
       setDraft('');
-      setMessage('Saved on the server. It takes effect on the next fetch.');
+      setMessage('Stored. The block refetches with it on the next poll.');
     } catch (cause) {
       setMessage(cause instanceof Error ? cause.message : 'Could not save.');
     } finally {

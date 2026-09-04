@@ -1,3 +1,4 @@
+import { deleteBlockData } from '@/db/block-data';
 import {
   MAX_SECRET_BYTES,
   deleteSecret,
@@ -15,6 +16,11 @@ import { authorizeConfigWrite } from '@/lib/morrow/server-auth';
  *   DELETE /api/blocks/:blockId/secrets?name=...
  *
  * All gated like a configuration write. Values are never returned.
+ *
+ * Writing or removing a secret drops the block's stored data. The credentials
+ * a plugin fetches with have changed, so whatever is cached was fetched under
+ * the old ones and the next poll must go out again rather than wait for the
+ * refresh interval to lapse.
  */
 
 interface RouteContext {
@@ -78,6 +84,7 @@ export async function PUT(request: Request, context: RouteContext) {
     );
   }
   await writeSecret(blockId, name, value.trim());
+  await deleteBlockData([blockId]);
   return Response.json({ ok: true, names: await readSecretNames(blockId) });
 }
 
@@ -93,5 +100,6 @@ export async function DELETE(request: Request, context: RouteContext) {
     );
   }
   await deleteSecret(blockId, name);
+  await deleteBlockData([blockId]);
   return Response.json({ ok: true, names: await readSecretNames(blockId) });
 }
