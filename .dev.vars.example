@@ -1,7 +1,7 @@
 # Local variables for the Cloudflare runtime used by `npm run dev` and `npm start`.
 # Copy to `.dev.vars` (gitignored). In production set these as Worker secrets.
 MORROW_ADMIN_TOKEN=
-MORROW_WEBHOOK_TOKEN=local-hook
+MORROW_WEBHOOK_TOKEN=replace-with-a-long-random-value
 
 # Microsoft 365 calendar plugin: an Entra app registration with the Graph
 # application permission Calendars.Read. See plugins/calendar/README.md.
