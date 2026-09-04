@@ -31,7 +31,7 @@ Other scripts:
 | Script           | Purpose                                                      |
 | ---------------- | ------------------------------------------------------------ |
 | `npm run check`  | Format check, lint, typecheck, and unit tests (what CI runs) |
-| `npm test`       | Unit tests only                                              |
+| `npm test`       | Unit and behaviour tests                                     |
 | `npm run format` | Fix formatting                                               |
 | `npm run build`  | Production build into `dist/`                                |
 
