@@ -388,6 +388,32 @@ export function contributionLevel(
   return Math.min(4, Math.max(1, level)) as 1 | 2 | 3 | 4;
 }
 
+export interface TokenReach {
+  /** Classic tokens report their scopes in a header; fine-grained ones do not. */
+  scopes: string[] | null;
+  /** Whether the token can read any repository at all. */
+  seesAnyRepo: boolean;
+}
+
+/**
+ * Why a token that GitHub accepted can still read nothing in an owner.
+ * All four causes look identical from the outside, an empty list, so the one
+ * question worth asking is what else the token can reach.
+ */
+export function describeTokenProblem(owner: string, reach: TokenReach): string {
+  const fineGrained = reach.scopes === null;
+  if (fineGrained) {
+    return reach.seesAnyRepo
+      ? `This fine-grained token works but has no grant on ${owner}. Its resource owner is most likely a personal account: create a new one with ${owner} chosen as the resource owner, or use a classic token with the "repo" scope.`
+      : `This fine-grained token can read no repositories at all, which usually means an organisation owner has not approved it yet. Check Pending requests in ${owner}'s settings.`;
+  }
+  const hasRepoScope = reach.scopes?.includes('repo') ?? false;
+  if (!hasRepoScope) {
+    return `This classic token does not have the "repo" scope, so it cannot read private repositories. Add that scope, or create a new token with it.`;
+  }
+  return `This classic token has the "repo" scope but no access to ${owner}. If ${owner} uses single sign-on, authorise the token for it in your token list; otherwise check that you are a member with repository access.`;
+}
+
 export function isGitHubData(value: unknown): value is GitHubData {
   const source = rec(value);
   return (
@@ -594,11 +620,35 @@ async function listOwnerRepos(
   if (!ownerExists) {
     throw new Error(`No GitHub account or organisation called ${owner}.`);
   }
-  throw new Error(
-    token
-      ? `The token reached GitHub but ${owner} has no repositories it can read. A fine-grained token needs ${owner} as its resource owner, the repositories selected, Contents set to read-only, and approval from an organisation owner if ${owner} requires it. A classic token needs the "repo" scope.`
-      : `${owner} has no public repositories. Private ones need a token in the block settings.`,
-  );
+  if (!token) {
+    throw new Error(
+      `${owner} has no public repositories. Private ones need a token in the block settings.`,
+    );
+  }
+  throw new Error(describeTokenProblem(owner, await tokenReach(token)));
+}
+
+/** What else the token can reach, asked once, only on the failure path. */
+async function tokenReach(token: string): Promise<TokenReach> {
+  try {
+    const response = await request(`${API}/user/repos?per_page=1`, token);
+    if (!response.ok) return { scopes: null, seesAnyRepo: false };
+    // Classic tokens report their scopes here; fine-grained ones send nothing.
+    const header = response.headers.get('x-oauth-scopes');
+    const body = await readJson(response);
+    return {
+      scopes:
+        header === null
+          ? null
+          : header
+              .split(',')
+              .map((scope) => scope.trim())
+              .filter(Boolean),
+      seesAnyRepo: Array.isArray(body) && body.length > 0,
+    };
+  } catch {
+    return { scopes: null, seesAnyRepo: false };
+  }
 }
 
 /**

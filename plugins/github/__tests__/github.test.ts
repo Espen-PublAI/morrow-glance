@@ -11,6 +11,7 @@ import {
   parseCommitActivity,
   parseContributors,
   parseOwner,
+  describeTokenProblem,
   visibleWeeks,
   isGitHubData,
   normaliseUser,
@@ -176,6 +177,74 @@ describe('what the repository field accepts', () => {
     vi.unstubAllGlobals();
   });
 
+  it('names which of the four causes it is', () => {
+    // A fine-grained token that reads other repositories is scoped wrongly.
+    expect(
+      describeTokenProblem('Aptide-ai', { scopes: null, seesAnyRepo: true }),
+    ).toMatch(/resource owner is most likely a personal account/);
+    // One that reads nothing anywhere is usually waiting for approval.
+    expect(
+      describeTokenProblem('Aptide-ai', { scopes: null, seesAnyRepo: false }),
+    ).toMatch(/not approved it yet|Pending requests/);
+    // A classic token without the scope cannot read private repositories.
+    expect(
+      describeTokenProblem('Aptide-ai', {
+        scopes: ['read:user'],
+        seesAnyRepo: true,
+      }),
+    ).toMatch(/does not have the "repo" scope/);
+    // With the scope, the likely cause is single sign-on.
+    expect(
+      describeTokenProblem('Aptide-ai', {
+        scopes: ['repo'],
+        seesAnyRepo: true,
+      }),
+    ).toMatch(/single sign-on/);
+  });
+
+  it('asks what else the token can reach before blaming anything', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      calls.push(url);
+      if (url.includes('/orgs/Aptide-ai/repos')) return Response.json([]);
+      if (url.includes('/user/repos?affiliation')) return Response.json([]);
+      // The diagnostic probe: a fine-grained token that can read something.
+      if (url.includes('/user/repos?per_page=1')) {
+        return Response.json([{ full_name: 'espen/other' }]);
+      }
+      return new Response('[]', { status: 404 });
+    });
+    await expect(fetchGitHub({ repo: 'Aptide-ai' }, withToken)).rejects.toThrow(
+      /resource owner is most likely a personal account/,
+    );
+    // The probe runs only after the ordinary lookups have failed.
+    expect(
+      calls.filter((url) => url.includes('/user/repos?per_page=1')),
+    ).toHaveLength(1);
+    vi.unstubAllGlobals();
+  });
+
+  it('reads a classic token\u2019s scopes from the response header', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) return Response.json([]);
+      if (url.includes('/user/repos?affiliation')) return Response.json([]);
+      if (url.includes('/user/repos?per_page=1')) {
+        return new Response(JSON.stringify([{ full_name: 'espen/other' }]), {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            'x-oauth-scopes': 'repo, read:org',
+          },
+        });
+      }
+      return new Response('[]', { status: 404 });
+    });
+    await expect(fetchGitHub({ repo: 'Aptide-ai' }, withToken)).rejects.toThrow(
+      /single sign-on/,
+    );
+    vi.unstubAllGlobals();
+  });
+
   it('explains what a token needs when it can read nothing', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
       if (url.includes('/orgs/Aptide-ai/repos')) return Response.json([]);
@@ -183,7 +252,7 @@ describe('what the repository field accepts', () => {
       return new Response('[]', { status: 404 });
     });
     await expect(fetchGitHub({ repo: 'Aptide-ai' }, withToken)).rejects.toThrow(
-      /resource owner.*repositories selected.*approval/s,
+      /fine-grained token can read no repositories at all/,
     );
     vi.unstubAllGlobals();
   });
