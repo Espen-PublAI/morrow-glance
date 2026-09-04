@@ -57,12 +57,32 @@ That costs eleven requests per refresh rather than three, so a token is
 required in practice: the unauthenticated allowance is sixty an hour for the
 whole IP address.
 
-Private repositories need a token that can actually see them. A fine-grained
-token created for "Public repositories" cannot, even if you are an owner of
-the organisation. Create the token with the **organisation** as its resource
-owner, select the repositories, and grant **Contents: read-only**. Some
-organisations require an owner to approve the token before it works. If the
-token cannot see anything, the block says so rather than looking empty.
+### Tokens for private repositories
+
+A fine-grained token created for "Public repositories" cannot see a private
+organisation, even if you own that organisation. Getting this right has four
+parts, and missing any one of them looks identical from the outside: GitHub
+authenticates the token happily and returns an empty list.
+
+1. **Resource owner** must be the organisation, not your personal account.
+   This is the step people miss. It is a dropdown at the top of the token
+   form, and it only offers organisations that permit fine-grained tokens.
+2. **Repository access**: All repositories, or Only select repositories with
+   the ones you want chosen.
+3. **Permissions**: Repository permissions, Contents, Read-only.
+4. **Approval**: many organisations require an owner to approve the token
+   before it does anything. Until then it behaves exactly like a token with no
+   access. Check Settings, Personal access tokens, Pending requests on the
+   organisation.
+
+If the organisation does not appear as a resource owner, it has fine-grained
+tokens disabled. Use a **classic** token with the `repo` scope instead, from
+github.com/settings/tokens, and enable single sign-on for the organisation on
+the token if the organisation uses it.
+
+The block distinguishes these cases as far as the API allows: a name that does
+not exist, a token that reaches GitHub but can read nothing, and repositories
+whose statistics GitHub has not finished computing.
 
 ## Statistics GitHub computes lazily
 

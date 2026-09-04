@@ -553,24 +553,52 @@ async function listOwnerRepos(
   owner: string,
   token: string | undefined,
 ): Promise<RepoRef[]> {
+  const wanted = owner.toLowerCase();
+  const refsFrom = (body: unknown): RepoRef[] =>
+    Array.isArray(body)
+      ? body
+          .map((raw) => str(rec(raw).full_name))
+          .filter((full): full is string => full !== null)
+          .map((full) => parseRepoName(full))
+          .filter((ref): ref is RepoRef => ref !== null)
+          .filter((ref) => ref.owner.toLowerCase() === wanted)
+      : [];
+
+  let ownerExists = false;
   const query = `?sort=pushed&per_page=${OWNER_REPO_LIMIT}`;
   for (const path of [`orgs/${owner}/repos`, `users/${owner}/repos`]) {
     const response = await request(`${API}/${path}${query}`, token);
     if (response.status === 404) continue;
     if (!response.ok) throw new Error(`GitHub answered ${response.status}.`);
-    const body = await readJson(response);
-    if (!Array.isArray(body)) continue;
-    const repos = body
-      .map((raw) => str(rec(raw).full_name))
-      .filter((full): full is string => full !== null)
-      .map((full) => parseRepoName(full))
-      .filter((ref): ref is RepoRef => ref !== null);
-    if (repos.length > 0) return repos;
-    throw new Error(
-      `${owner} has no repositories this token can see. A fine-grained token needs that owner selected and read access to its repositories.`,
-    );
+    ownerExists = true;
+    const refs = refsFrom(await readJson(response));
+    if (refs.length > 0) return refs;
   }
-  throw new Error(`No GitHub account or organisation called ${owner}.`);
+
+  // Some grants are only visible through the token's own repository list, so
+  // try that before concluding there is nothing to see.
+  if (token) {
+    const response = await request(
+      `${API}/user/repos?affiliation=owner,organization_member&sort=pushed&per_page=100`,
+      token,
+    );
+    if (response.ok) {
+      const refs = refsFrom(await readJson(response)).slice(
+        0,
+        OWNER_REPO_LIMIT,
+      );
+      if (refs.length > 0) return refs;
+    }
+  }
+
+  if (!ownerExists) {
+    throw new Error(`No GitHub account or organisation called ${owner}.`);
+  }
+  throw new Error(
+    token
+      ? `The token reached GitHub but ${owner} has no repositories it can read. A fine-grained token needs ${owner} as its resource owner, the repositories selected, Contents set to read-only, and approval from an organisation owner if ${owner} requires it. A classic token needs the "repo" scope.`
+      : `${owner} has no public repositories. Private ones need a token in the block settings.`,
+  );
 }
 
 /**

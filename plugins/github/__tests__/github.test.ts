@@ -151,15 +151,48 @@ describe('what the repository field accepts', () => {
     vi.unstubAllGlobals();
   });
 
-  it('says plainly when a token cannot see an owner\u2019s repositories', async () => {
-    vi.stubGlobal('fetch', async (url: string) =>
-      url.includes('/orgs/Aptide-ai/repos')
-        ? Response.json([])
-        : new Response('[]', { status: 404 }),
+  const withToken = { ...context, secrets: { token: 'test-token' } };
+
+  it('finds a grant that only shows up in the token\u2019s own repository list', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      // The organisation endpoint sees nothing, but the token does.
+      if (url.includes('/orgs/Aptide-ai/repos')) return Response.json([]);
+      if (url.includes('/users/Aptide-ai/repos')) {
+        return new Response('[]', { status: 404 });
+      }
+      if (url.includes('/user/repos')) {
+        return Response.json([
+          { full_name: 'Aptide-ai/api' },
+          { full_name: 'someone-else/other' },
+        ]);
+      }
+      return Response.json([
+        { week: 1_788_048_000, days: [5, 0, 0, 0, 0, 0, 0] },
+      ]);
+    });
+    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    // Only the wanted owner's repositories are aggregated.
+    expect(data.commitActivity?.repos).toEqual([{ name: 'api', commits: 5 }]);
+    vi.unstubAllGlobals();
+  });
+
+  it('explains what a token needs when it can read nothing', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) return Response.json([]);
+      if (url.includes('/user/repos')) return Response.json([]);
+      return new Response('[]', { status: 404 });
+    });
+    await expect(fetchGitHub({ repo: 'Aptide-ai' }, withToken)).rejects.toThrow(
+      /resource owner.*repositories selected.*approval/s,
     );
-    await expect(fetchGitHub({ repo: 'Aptide-ai' }, context)).rejects.toThrow(
-      /no repositories this token can see/,
-    );
+    vi.unstubAllGlobals();
+  });
+
+  it('distinguishes an owner that does not exist at all', async () => {
+    vi.stubGlobal('fetch', async () => new Response('[]', { status: 404 }));
+    await expect(
+      fetchGitHub({ repo: 'nope-not-real' }, context),
+    ).rejects.toThrow(/No GitHub account or organisation/);
     vi.unstubAllGlobals();
   });
 
