@@ -257,7 +257,7 @@ export function MorrowDisplay({ initialConfig }: MorrowDisplayProps) {
               <span className="footer-mark" aria-hidden="true" />
               {config.name}
             </span>
-            {date && (
+            {config.footer.date && date && (
               <span className="footer-tag is-quiet is-date">{date}</span>
             )}
           </div>
@@ -308,12 +308,14 @@ export function MorrowDisplay({ initialConfig }: MorrowDisplayProps) {
             )}
           </div>
           <div className="footer-group is-end">
-            {config.location && (
+            {config.footer.location && config.location && (
               <span className="footer-tag is-quiet">{config.location}</span>
             )}
-            <span className="footer-tag">
-              <time>{time}</time>
-            </span>
+            {config.footer.time && (
+              <span className="footer-tag">
+                <time>{time}</time>
+              </span>
+            )}
           </div>
         </footer>
       </Tabs>

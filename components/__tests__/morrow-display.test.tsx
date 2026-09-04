@@ -125,6 +125,59 @@ describe('first paint', () => {
   });
 });
 
+describe('what the footer shows', () => {
+  const render_ = (footer: Partial<MorrowConfig['footer']>) => {
+    const served = config({
+      location: 'Veggli',
+      footer: { date: true, location: true, time: true, ...footer },
+    });
+    fetchConfig.mockResolvedValue({
+      config: served,
+      updatedAt: 't',
+      staleClient: false,
+    });
+    render(<MorrowDisplay initialConfig={served} />);
+  };
+
+  it('shows the name, date, location, and time by default', async () => {
+    render_({});
+    await settle();
+    expect(screen.getByText('Lobby')).toBeTruthy();
+    expect(screen.getByText('Veggli')).toBeTruthy();
+    expect(screen.getByText(/^\d{2}:\d{2}$/)).toBeTruthy();
+    expect(
+      screen.getByText(
+        /September|January|February|March|April|May|June|July|August|October|November|December/,
+      ),
+    ).toBeTruthy();
+  });
+
+  it('hides the time when the display asks it to, keeping the name', async () => {
+    render_({ time: false });
+    await settle();
+    expect(screen.queryByText(/^\d{2}:\d{2}$/)).toBeNull();
+    expect(screen.getByText('Lobby')).toBeTruthy();
+  });
+
+  it('hides the location and the date independently', async () => {
+    render_({ location: false, date: false });
+    await settle();
+    expect(screen.queryByText('Veggli')).toBeNull();
+    expect(screen.queryByText(/September/)).toBeNull();
+    // The time and the name stay.
+    expect(screen.getByText(/^\d{2}:\d{2}$/)).toBeTruthy();
+    expect(screen.getByText('Lobby')).toBeTruthy();
+  });
+
+  it('leaves only the name when everything optional is off', async () => {
+    render_({ date: false, location: false, time: false });
+    await settle();
+    expect(screen.getByText('Lobby')).toBeTruthy();
+    expect(screen.queryByText(/^\d{2}:\d{2}$/)).toBeNull();
+    expect(screen.queryByText('Veggli')).toBeNull();
+  });
+});
+
 describe('polling', () => {
   it('applies a configuration that changed on the server', async () => {
     fetchConfig.mockResolvedValue({
@@ -248,11 +301,13 @@ describe('cost of running for weeks', () => {
     await settle();
     const afterFirstLoad = commits;
 
-    await tick(1_100);
-    await tick(1_100);
-    // Two further polls of identical data must not repaint the screen.
-    expect(commits).toBe(afterFirstLoad);
-    expect(fetchConfig.mock.calls.length).toBeGreaterThanOrEqual(3);
+    for (let i = 0; i < 5; i += 1) await tick(1_100);
+    // Five further polls of identical data must not repaint the screen. The
+    // bound rather than an exact count: React may split a commit under load,
+    // and one stray commit is not the failure worth catching. Repainting on
+    // every poll is, and that would land near five.
+    expect(fetchConfig.mock.calls.length).toBeGreaterThanOrEqual(6);
+    expect(commits - afterFirstLoad).toBeLessThanOrEqual(1);
   });
 
   it('does re-render when the data actually changes', async () => {

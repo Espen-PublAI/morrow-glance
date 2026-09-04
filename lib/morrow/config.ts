@@ -1,4 +1,5 @@
 import {
+  DEFAULT_FOOTER,
   DEFAULT_ROTATION_SECONDS,
   DEFAULT_SCREEN_ID,
   DEFAULT_SCREENS,
@@ -11,6 +12,7 @@ import {
   type GlanceLayout,
   type GlancePage,
   type MorrowConfig,
+  type FooterFields,
   type PluginSettings,
   type ScreenProfile,
 } from '@/lib/morrow/types';
@@ -321,6 +323,30 @@ function legacyScreens(source: Json): unknown {
   );
 }
 
+function boolean(value: unknown, path: string, fallback: boolean): boolean {
+  if (value === undefined || value === null) return fallback;
+  if (typeof value !== 'boolean') fail(path, 'expected true or false');
+  return value;
+}
+
+/**
+ * Footer fields default to shown, so a configuration written before they
+ * existed keeps the footer it had.
+ */
+function footer(value: unknown): FooterFields {
+  if (value === undefined || value === null) return { ...DEFAULT_FOOTER };
+  const source = object(value, 'footer');
+  return {
+    date: boolean(source.date, 'footer.date', DEFAULT_FOOTER.date),
+    location: boolean(
+      source.location,
+      'footer.location',
+      DEFAULT_FOOTER.location,
+    ),
+    time: boolean(source.time, 'footer.time', DEFAULT_FOOTER.time),
+  };
+}
+
 function rotationSeconds(source: Json): number {
   // Configurations written before 0.1.0 stored `rotationMs`.
   const legacy = source.rotationMs;
@@ -406,6 +432,7 @@ export function parseMorrowConfig(input: unknown): MorrowConfig {
     screens,
     pages,
     disabledPlugins,
+    footer: footer(source.footer),
   };
 }
 

@@ -205,6 +205,42 @@ export function AdminConsole(props: AdminStateOptions) {
                 ))}
               </select>
             </label>
+            <div className="field-label">
+              Footer
+              <ul className="footer-toggles">
+                {(
+                  [
+                    ['date', 'Date'],
+                    ['location', 'Location'],
+                    ['time', 'Time'],
+                  ] as const
+                ).map(([field, label]) => (
+                  <li key={field}>
+                    <label className="field-label">
+                      <input
+                        type="checkbox"
+                        className="field-checkbox"
+                        checked={config.footer[field]}
+                        onChange={(event) =>
+                          updateConfig((current) => ({
+                            ...current,
+                            footer: {
+                              ...current.footer,
+                              [field]: event.target.checked,
+                            },
+                          }))
+                        }
+                      />
+                      {label}
+                    </label>
+                  </li>
+                ))}
+              </ul>
+              <small className="field-help">
+                The display name is always shown
+              </small>
+            </div>
+
             <label className="field-label">
               Admin token
               <input

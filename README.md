@@ -40,6 +40,7 @@ Other scripts:
 Admin is the visual control surface for the system. It supports:
 
 - display name, location, timezone, paper colour, and page rotation;
+- which of the date, location, and time the footer shows, for when a block already carries that information;
 - adding, naming, and removing pages;
 - dragging plugins from the library onto the page grid, moving blocks, and resizing them from a corner handle, with keyboard nudging for accessibility;
 - adding screens from presets or as a custom size.
@@ -97,7 +98,7 @@ With multiple pages, the Player automatically enables tabs, rotation, touch gest
 
 ## Design language
 
-The Player borrows from e-paper companions and from Linear and reMarkable: one ink on one paper, dotted hairlines where two blocks meet, and a single quiet footer under a very faint rule that carries the display name, date, location, and time as plain text. There is no header; the whole screen above the footer belongs to blocks. Hairlines and the footer scale with the viewport, so a 4K television reads like a 7-inch panel held closer.
+The Player borrows from e-paper companions and from Linear and reMarkable: one ink on one paper, dotted hairlines where two blocks meet, and a single quiet footer under a very faint rule that carries the display name, date, location, and time as plain text. There is no header; the whole screen above the footer belongs to blocks. Each optional footer field can be switched off in Admin, so a display whose blocks already show the time need not repeat it, while the name stays as the screen's identity. Hairlines and the footer scale with the viewport, so a 4K television reads like a 7-inch panel held closer.
 
 Typography is one system with two weights, and every size is a token that scales with the block or the viewport, so plugins by different authors set the same way. Blocks never have fills or shadows, so a layout reads the same in white, grey, and black. Dividers and the footer rule derive from the ink colour, which is why a new theme only needs `--paper` and `--ink`.
 

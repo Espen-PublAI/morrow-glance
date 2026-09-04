@@ -72,6 +72,20 @@ export interface GlancePage {
 }
 
 /** The single shared configuration served to Admin and every Player. */
+/**
+ * What the Player's footer shows besides the display name. Each is a
+ * deliberate choice rather than something inferred from the blocks on screen:
+ * a block showing the local time does not always mean the footer clock is
+ * redundant, and a footer that rearranges itself when an unrelated block is
+ * added is unsettling on a screen meant to sit still.
+ */
+export interface FooterFields {
+  date: boolean;
+  location: boolean;
+  /** Also the only proof a screen is still live, so hide it deliberately. */
+  time: boolean;
+}
+
 export interface MorrowConfig {
   name: string;
   location: string;
@@ -88,6 +102,8 @@ export interface MorrowConfig {
    * plugin appears without a config change. Existing blocks keep rendering.
    */
   disabledPlugins: string[];
+  /** Which of the footer's optional fields this display shows. */
+  footer: FooterFields;
 }
 
 export type PluginSettingValue = string | number | boolean;

@@ -257,6 +257,54 @@ describe('parseMorrowConfig', () => {
     ).toThrow(/kind/);
   });
 
+  it('shows every footer field when a configuration predates them', () => {
+    const { footer: _f, ...before } = morrowConfig;
+    expect(parseMorrowConfig(before).footer).toEqual({
+      date: true,
+      location: true,
+      time: true,
+    });
+  });
+
+  it('keeps the footer fields a configuration does set', () => {
+    // Each field is set to the opposite of its default, so a parser that
+    // quietly returned the defaults would fail here.
+    const parsed = parseMorrowConfig({
+      ...morrowConfig,
+      footer: { date: false, location: false, time: false },
+    });
+    expect(parsed.footer).toEqual({
+      date: false,
+      location: false,
+      time: false,
+    });
+
+    const mixed = parseMorrowConfig({
+      ...morrowConfig,
+      footer: { date: false, location: true, time: false },
+    });
+    expect(mixed.footer).toEqual({ date: false, location: true, time: false });
+  });
+
+  it('fills in only the footer fields that are missing', () => {
+    expect(
+      parseMorrowConfig({ ...morrowConfig, footer: { time: false } }).footer,
+    ).toEqual({
+      date: true,
+      location: true,
+      time: false,
+    });
+  });
+
+  it('refuses a footer field that is not a boolean', () => {
+    expect(() =>
+      parseMorrowConfig({ ...morrowConfig, footer: { time: 'no' } }),
+    ).toThrow(/footer\.time/);
+    expect(() =>
+      parseMorrowConfig({ ...morrowConfig, footer: 'none' }),
+    ).toThrow(/footer/);
+  });
+
   it('names the failing path in the error', () => {
     try {
       parseMorrowConfig({ ...morrowConfig, screens: [{ id: 'x' }] });
