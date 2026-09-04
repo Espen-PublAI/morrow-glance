@@ -9,6 +9,8 @@ Morrow keeps content, layout, and output separate:
 - **Morrow Plugins** provide content and views without coupling integrations to the Player.
 - **Morrow Server** stores one shared configuration in Cloudflare D1 and serves it to Admin and every Player.
 
+![The Morrow Player showing the time in Oslo and Ho Chi Minh City, a world map, and a weather forecast](docs/screenshots/player-white.png)
+
 Self-host it with `docker compose up`, or deploy it to Cloudflare Workers. Storage is SQLite or D1 behind one small adapter, so the same code runs either way.
 
 A clean installation intentionally starts with an empty Glance. There is no sample content or simulated data.
@@ -41,6 +43,8 @@ Admin is the visual control surface for the system. It supports:
 - adding, naming, and removing pages;
 - dragging plugins from the library onto the page grid, moving blocks, and resizing them from a corner handle, with keyboard nudging for accessibility;
 - adding screens from presets or as a custom size.
+
+![Morrow Admin: the display settings, a page grid with a block selected, and the block inspector](docs/screenshots/admin.png)
 
 Save writes the configuration to Morrow Server. Every Player also keeps a local copy of the last configuration it received, so a screen keeps showing its Glance if the server is temporarily unavailable.
 
@@ -93,7 +97,11 @@ With multiple pages, the Player automatically enables tabs, rotation, touch gest
 
 ## Design language
 
-The Player borrows from e-paper companions and from Linear and reMarkable: one ink on one paper, dotted hairlines where two blocks meet, and a single quiet footer under a very faint rule that carries the display name, date, location, and time as plain text. There is no header; the whole screen above the footer belongs to blocks. Hairlines and the footer scale with the viewport, so a 4K television reads like a 7-inch panel held closer. Typography is one system with two weights, and every size is a token that scales with the block or the viewport, so plugins by different authors set the same way. Blocks never have fills or shadows, so a layout reads the same in white, grey, and black. Dividers and the halftone derive from the ink colour, which is why a new theme only needs `--paper` and `--ink`.
+The Player borrows from e-paper companions and from Linear and reMarkable: one ink on one paper, dotted hairlines where two blocks meet, and a single quiet footer under a very faint rule that carries the display name, date, location, and time as plain text. There is no header; the whole screen above the footer belongs to blocks. Hairlines and the footer scale with the viewport, so a 4K television reads like a 7-inch panel held closer.
+
+Typography is one system with two weights, and every size is a token that scales with the block or the viewport, so plugins by different authors set the same way. Blocks never have fills or shadows, so a layout reads the same in white, grey, and black. Dividers and the footer rule derive from the ink colour, which is why a new theme only needs `--paper` and `--ink`.
+
+![The same Glance in the black palette](docs/screenshots/player-black.png)
 
 Anything read from the API, the database, or the browser passes through `parseMorrowConfig` in `lib/morrow/config.ts`, which strips unknown keys, checks ranges and ids, and refuses overlapping blocks. Older configurations that stored `rotationMs` or `deviceProfiles` are migrated on read.
 
