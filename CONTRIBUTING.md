@@ -62,7 +62,12 @@ app/
 components/
   morrow-display.tsx    Player: polling, rotation, gestures
   glance-renderer.tsx   One page of blocks on a CSS grid (Player + Admin)
-  admin/                Admin console: canvas, drag hook, inspector, library
+  admin/
+    use-admin-state.ts  Everything Admin knows and can do, with no markup
+    admin-console.tsx   The layout, which renders what the hook returns
+    use-canvas-drag.ts  Pointer-driven placing, moving, and resizing
+    admin-canvas.tsx    The page grid, block tools, and drag ghost
+    block-inspector.tsx, screen-inspector.tsx, plugin-library.tsx, ...
 plugins/
   index.ts              Auto-discovers plugins/<name>/plugin.tsx; nothing to edit
   clock/                Reference plugin: a clock
@@ -131,6 +136,27 @@ the server so they never reach a Player.
 2. Append it to `screenPresets` in `lib/morrow/screens/index.ts`.
 3. It appears in Admin's "Add…" menu under Screens. Saved configurations keep
    their own copy, so editing a preset later never changes an existing screen.
+
+## Tests
+
+`npm test` runs everything in about a second. Two kinds:
+
+- **Pure logic** under `lib/`, `db/`, and `plugins/`, in a Node environment.
+  Grid maths, configuration parsing, the SQLite adapter, and each plugin's
+  parsing live here.
+- **Behaviour** under `components/`, in a DOM. These carry a
+  `// @vitest-environment happy-dom` docblock and use Testing Library. They
+  cover the three files where a mistake is least visible: the drag hook, the
+  Admin state hook, and the Player.
+
+Two habits worth keeping. Test the hook rather than the markup, so a layout
+change does not break the suite. And when you add a test, check it fails when
+you break the thing it claims to cover; several tests here were weak until that
+was checked, and one turned out to be guarding an unreachable branch.
+
+`lib/morrow/__tests__/layering.test.ts` asserts that `lib/morrow` imports
+nothing else from the project. If you need the plugin registry or the database
+in something under `lib/`, that is a sign the code belongs a layer up.
 
 ## Touching storage
 

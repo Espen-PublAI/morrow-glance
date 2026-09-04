@@ -1,6 +1,6 @@
 import { readSecretValues } from '@/db/block-secrets';
 import { database, runInBackground } from '@/db/database';
-import { resolveBlockSource } from '@/lib/morrow/block-source';
+import { resolveBlockSource } from '@/db/block-source';
 import { pluginServers } from '@/plugins/server';
 import {
   POLL_TIMEOUT_MS,

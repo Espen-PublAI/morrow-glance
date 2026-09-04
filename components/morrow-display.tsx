@@ -55,6 +55,7 @@ export function MorrowDisplay({ initialConfig }: MorrowDisplayProps) {
   const pagesRef = useRef(config.pages);
   // Poll bookkeeping lives in refs so re-running the effect never forgets it.
   const lastSerialized = useRef(JSON.stringify(initialConfig));
+  const lastData = useRef('{}');
   const loadedOnce = useRef(false);
 
   const pages = config.pages;
@@ -102,6 +103,16 @@ export function MorrowDisplay({ initialConfig }: MorrowDisplayProps) {
   useEffect(() => {
     let cancelled = false;
 
+    const applyData = (next: Record<string, BlockData>) => {
+      // A screen runs for weeks. Re-rendering every plugin view on each poll
+      // when nothing changed is waste, and /api/data always answers with a
+      // fresh object, so compare the content rather than the reference.
+      const serialized = JSON.stringify(next);
+      if (serialized === lastData.current) return;
+      lastData.current = serialized;
+      setBlockData(next);
+    };
+
     const apply = (next: MorrowConfig) => {
       // Always keep the local copy fresh, even when nothing changed on screen.
       cacheMorrowConfig(next);
@@ -129,7 +140,7 @@ export function MorrowDisplay({ initialConfig }: MorrowDisplayProps) {
           return;
         }
         apply(remote);
-        if (data) setBlockData(data);
+        if (data) applyData(data);
       } catch {
         // Server unreachable: keep what we have, or the last copy this screen saw.
         if (!cancelled && !loadedOnce.current) apply(readStoredMorrowConfig());

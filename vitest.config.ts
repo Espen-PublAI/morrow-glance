@@ -8,7 +8,14 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('.', import.meta.url)) },
   },
   test: {
-    include: ['lib/**/*.test.ts', 'db/**/*.test.ts', 'plugins/**/*.test.ts'],
+    include: [
+      'lib/**/*.test.ts',
+      'db/**/*.test.ts',
+      'plugins/**/*.test.ts',
+      'components/**/*.test.tsx',
+    ],
+    // Node by default; component tests opt into a DOM with a docblock:
+    // `// @vitest-environment happy-dom`
     environment: 'node',
   },
 });

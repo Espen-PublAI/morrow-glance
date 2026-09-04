@@ -1,7 +1,7 @@
 import { writeBlockData } from '@/db/block-data';
 import { getMorrowConfig } from '@/db/morrow-config';
 import { authorizeWebhook } from '@/lib/morrow/server-auth';
-import { resolveBlockSource } from '@/lib/morrow/block-source';
+import { resolveBlockSource } from '@/db/block-source';
 import { MAX_DATA_BYTES, blocksWithSources } from '@/lib/morrow/sources';
 
 /**
