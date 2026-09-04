@@ -836,35 +836,16 @@
   visibility: hidden;
 }
 
-/* Inspector: a plain, obvious destructive action at the end of the panel. */
-.inspector-danger {
-  padding: 16px 18px 22px;
+/* Inspector footer: a quiet way back to the library. */
+.inspector-footer {
+  padding: 14px 18px 22px;
 }
-.danger-action {
-  width: 100%;
-  height: 34px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
-  border: 1px solid #e3c9c6;
-  border-radius: 5px;
-  background: #fff;
+.inspector-heading > button:disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+.inspector-heading > button:hover:not(:disabled) {
   color: #8d2f28;
-  font-size: 11px;
-  font-weight: var(--weight-medium);
-  cursor: pointer;
-}
-.danger-action:hover {
-  background: #fbf1f0;
-  border-color: #c98d88;
-}
-.danger-action svg {
-  width: 13px;
-}
-.danger-action:disabled {
-  opacity: 0.45;
-  cursor: default;
 }
 
 .quiet-action:disabled {

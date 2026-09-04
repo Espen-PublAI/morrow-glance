@@ -37,13 +37,17 @@ export function ScreenInspector({
           <span>Screen</span>
           <strong>{screen.name}</strong>
         </div>
-        {removable ? (
-          <button type="button" onClick={onRemove} aria-label="Remove screen">
-            <Trash2 />
-          </button>
-        ) : (
-          <span />
-        )}
+        <button
+          type="button"
+          onClick={onRemove}
+          disabled={!removable}
+          aria-label="Remove screen"
+          title={
+            removable ? 'Remove screen' : 'A Glance needs at least one screen'
+          }
+        >
+          <Trash2 />
+        </button>
       </div>
 
       <section className="inspector-section setting-fields">
@@ -119,17 +123,6 @@ export function ScreenInspector({
           Open this address on the screen. It follows this screen&apos;s refresh
           interval.
         </p>
-      </section>
-      <section className="inspector-danger">
-        <button
-          type="button"
-          className="danger-action"
-          onClick={onRemove}
-          disabled={!removable}
-          title={removable ? undefined : 'Keep at least one screen'}
-        >
-          <Trash2 /> Remove screen
-        </button>
       </section>
     </>
   );

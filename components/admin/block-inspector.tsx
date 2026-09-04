@@ -79,7 +79,12 @@ export function BlockInspector({
           <span>Block</span>
           <strong>{manifest.name}</strong>
         </div>
-        <button type="button" onClick={onRemove} aria-label="Remove block">
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label="Remove block"
+          title="Remove block"
+        >
           <Trash2 />
         </button>
       </div>
@@ -317,10 +322,7 @@ export function BlockInspector({
         </section>
       )}
 
-      <section className="inspector-danger">
-        <button type="button" className="danger-action" onClick={onRemove}>
-          <Trash2 /> Remove block
-        </button>
+      <section className="inspector-footer">
         <button
           type="button"
           className="quiet-action inspector-back"
