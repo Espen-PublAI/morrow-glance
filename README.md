@@ -9,6 +9,8 @@ Morrow keeps content, layout, and output separate:
 - **Morrow Plugins** provide content and views without coupling integrations to the Player.
 - **Morrow Server** stores one shared configuration in Cloudflare D1 and serves it to Admin and every Player.
 
+Self-host it with `docker compose up`, or deploy it to Cloudflare Workers. Storage is SQLite or D1 behind one small adapter, so the same code runs either way.
+
 A clean installation intentionally starts with an empty Glance. There is no sample content or simulated data.
 
 ## Run locally
@@ -170,33 +172,94 @@ See `CONTRIBUTING.md` for the full module map and conventions.
 
 ## Storage and access
 
-Morrow Server uses the Cloudflare D1 binding named `DB`. The schema lives in `migrations/0001_morrow_config.sql`; local development creates the same table automatically. For a hosted database run:
+Morrow keeps one configuration, the data its blocks have fetched, and any
+per-block secrets. All of it is SQL, in three small tables under `migrations/`.
 
-```bash
-npx wrangler d1 migrations apply <database-name> --remote
-```
+Storage sits behind one adapter (`db/adapter.ts`) with two implementations, so
+the rest of the code is identical either way:
+
+| Runtime            | Storage                              | Chosen when                             |
+| ------------------ | ------------------------------------ | --------------------------------------- |
+| Node               | SQLite, via the runtime's own driver | Anywhere that is not Cloudflare Workers |
+| Cloudflare Workers | D1, through the `DB` binding         | Detected at runtime                     |
+
+Self-hosted, the file lives at `./data/morrow.db`, or wherever
+`MORROW_SQLITE_PATH` points. There is nothing to install: Node 22 ships SQLite.
 
 Access is deliberately simple:
 
 - **Development is open on localhost.** With no token configured, the dev server accepts saves from localhost so a fresh checkout works immediately.
-- **Production requires a token.** A production build refuses every save until `MORROW_ADMIN_TOKEN` is set, and Admin shows a clear message saying so. Enter the token in Admin; the browser keeps it only for the current tab. The hostname check is not used in production because a proxy may forward `Host: localhost`.
+- **Production requires a token.** A production build refuses every save until `MORROW_ADMIN_TOKEN` is set, and Admin says so plainly. Enter the token in Admin; the browser keeps it only for the current tab. The hostname check is not used in production because a proxy may forward `Host: localhost`.
 - **Two admins cannot overwrite each other.** Every save carries the version stamp of the configuration it started from. If someone else saved in between, the API answers `409`, Admin explains, and offers a reload.
-- **Reads are public.** `GET /api/config` has no authentication, because a Player is meant to be opened on any screen. Do not put anything on a Glance that must stay private, and keep a hosted instance behind a network you trust or a proxy that adds access control.
-
-See `.env.example` for all variables. Locally they go in `.dev.vars` (copy `.dev.vars.example`), because the Cloudflare runtime does not read the shell environment; in production set them as Worker secrets.
+- **Reads are public.** `GET /api/config` and `GET /api/data` have no authentication, because a Player is meant to be opened on any screen. Do not put anything on a Glance that must stay private, and keep an exposed instance behind a network you trust or a proxy that adds access control.
 
 ## Deploy
 
-Morrow is built with [vinext](https://github.com/cloudflare/vinext) and targets Cloudflare Workers with D1. Run `npm run build`, then deploy `dist/` with Wrangler or `npx @vinext/cloudflare deploy`. Set `MORROW_ADMIN_TOKEN` and `MORROW_PUBLIC_URL` as Worker secrets or variables, and bind a D1 database as `DB`. Set `MORROW_BUILD_ID` to the git SHA at deploy time; Players compare it on every poll and reload themselves once the new id has answered twice in a row, at most once every ten minutes, so wall screens pick up new releases without anyone touching them and never loop during a gradual rollout.
+### Self-hosted with Docker
 
-The repository also carries `@openai/sites-vite-plugin` and `.openai/hosting.json`, which package the same build for OpenAI Sites hosting. They do not affect other targets.
+The shortest path, and the one to prefer when data must stay on your own
+infrastructure. Storage is a SQLite file in a volume; nothing else is needed.
+
+```bash
+echo "MORROW_ADMIN_TOKEN=$(openssl rand -hex 32)" > .env
+docker compose up -d
+```
+
+Open `http://localhost:3000` for the Player and `/admin` to build a Glance.
+Paste the token from `.env` into Admin's token field once per browser tab.
+The configuration lives in the `morrow-data` volume, so `docker compose pull`
+and `up -d` again keeps it.
+
+### Self-hosted without Docker
+
+```bash
+npm ci
+npm run build:node
+MORROW_ADMIN_TOKEN=… node dist/standalone/server.js
+```
+
+`PORT` defaults to 3000 and `HOST` to `0.0.0.0`. Point `MORROW_SQLITE_PATH` at
+a path you back up. The bundle carries its own dependencies, so the machine
+only needs Node 22.
+
+A known cosmetic issue in the self-hosted bundle: the console logs one
+`RSC prefetch setup error` on load. It comes from vinext's standalone output,
+affects link prefetching only, and neither Player nor Admin is impaired.
+
+### Cloudflare Workers
+
+```bash
+npm run build
+npx @vinext/cloudflare deploy
+```
+
+Bind a D1 database as `DB` and apply the migrations with
+`npx wrangler d1 migrations apply <database-name> --remote`. Set the variables
+as Worker secrets. Note that Workers run wherever the request lands and D1 sits
+in a Cloudflare region, so check where your data may live before choosing this
+for anything with personal data in it.
+
+### Variables
+
+See `.env.example` for the full list. Locally, the Cloudflare runtime reads
+`.dev.vars` (copy `.dev.vars.example`) rather than the shell environment; the
+self-hosted server reads the environment directly.
+
+Set `MORROW_BUILD_ID` to the release you deployed. Players compare it on every
+poll and reload themselves once a new id has answered twice in a row, at most
+once every ten minutes, so wall screens pick up a release without anyone
+touching them and never loop during a gradual rollout.
+
+The repository also carries `@openai/sites-vite-plugin` and
+`.openai/hosting.json`, which package the same build for OpenAI Sites hosting.
+Remove both if you deploy elsewhere; they do not affect other targets.
 
 ## Project shape
 
 ```text
 app/                         Player, Admin, and the config API
 components/                  Player and Admin components
-db/                          D1 configuration storage
+db/                          Storage: one adapter, SQLite and D1 behind it
 lib/morrow/                  Contracts, validation, grid math, screens, access checks
 migrations/                  Durable storage schema
 plugins/                     Installed plugins and their views

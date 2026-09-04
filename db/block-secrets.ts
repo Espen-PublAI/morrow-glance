@@ -1,4 +1,4 @@
-import { database, ensureSchema } from '@/db/schema-runtime';
+import { database } from '@/db/database';
 
 /**
  * Per-block secrets: values a plugin needs on the server that must never be
@@ -15,9 +15,8 @@ export function isValidSecretName(name: string): boolean {
 }
 
 export async function readSecretNames(blockId: string): Promise<string[]> {
-  const db = database();
-  await ensureSchema(db);
-  const { results } = await db
+  const db = await database();
+  const results = await db
     .prepare('SELECT name FROM morrow_block_secrets WHERE block_id = ?')
     .bind(blockId)
     .all<{ name: string }>();
@@ -28,9 +27,8 @@ export async function readSecretNames(blockId: string): Promise<string[]> {
 export async function readSecretValues(
   blockId: string,
 ): Promise<Record<string, string>> {
-  const db = database();
-  await ensureSchema(db);
-  const { results } = await db
+  const db = await database();
+  const results = await db
     .prepare('SELECT name, value FROM morrow_block_secrets WHERE block_id = ?')
     .bind(blockId)
     .all<{ name: string; value: string }>();
@@ -42,8 +40,7 @@ export async function writeSecret(
   name: string,
   value: string,
 ): Promise<void> {
-  const db = database();
-  await ensureSchema(db);
+  const db = await database();
   await db
     .prepare(
       `INSERT INTO morrow_block_secrets (block_id, name, value, updated_at)
@@ -60,8 +57,7 @@ export async function deleteSecret(
   blockId: string,
   name: string,
 ): Promise<void> {
-  const db = database();
-  await ensureSchema(db);
+  const db = await database();
   await db
     .prepare('DELETE FROM morrow_block_secrets WHERE block_id = ? AND name = ?')
     .bind(blockId, name)
@@ -70,10 +66,9 @@ export async function deleteSecret(
 
 /** After a configuration save: forget secrets of blocks that no longer exist. */
 export async function pruneSecrets(keepBlockIds: string[]): Promise<void> {
-  const db = database();
-  await ensureSchema(db);
+  const db = await database();
   const keep = new Set(keepBlockIds);
-  const { results } = await db
+  const results = await db
     .prepare('SELECT DISTINCT block_id FROM morrow_block_secrets')
     .all<{ block_id: string }>();
   const stale = results

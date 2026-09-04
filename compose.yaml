@@ -1,0 +1,23 @@
+# Morrow Glance, self-hosted. `docker compose up -d`, then open
+# http://localhost:3000 for the Player and /admin to build a Glance.
+services:
+  morrow:
+    build: .
+    image: morrow-glance
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    volumes:
+      - morrow-data:/data
+    environment:
+      # Required once the instance is reachable from outside this machine.
+      MORROW_ADMIN_TOKEN: ${MORROW_ADMIN_TOKEN:-}
+      # Optional: absolute URL used for social previews.
+      MORROW_PUBLIC_URL: ${MORROW_PUBLIC_URL:-http://localhost:3000}
+      # Optional: allows plugins to receive pushed data.
+      MORROW_WEBHOOK_TOKEN: ${MORROW_WEBHOOK_TOKEN:-}
+      # Optional: set to the release you deployed so open Players reload.
+      MORROW_BUILD_ID: ${MORROW_BUILD_ID:-}
+
+volumes:
+  morrow-data:

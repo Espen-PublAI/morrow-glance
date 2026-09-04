@@ -1,4 +1,4 @@
-import { database, ensureSchema } from '@/db/schema-runtime';
+import { database } from '@/db/database';
 import { parseMorrowConfig } from '@/lib/morrow/config';
 import type { MorrowConfig } from '@/lib/morrow/types';
 import { morrowConfig } from '@/morrow.config';
@@ -19,8 +19,7 @@ export type SaveResult =
   | { status: 'conflict' };
 
 export async function loadMorrowConfig(): Promise<StoredConfig> {
-  const db = database();
-  await ensureSchema(db);
+  const db = await database();
   const row = await db
     .prepare('SELECT config_json, updated_at FROM morrow_config WHERE id = ?')
     .bind(CONFIG_ROW_ID)
@@ -68,8 +67,7 @@ export async function saveMorrowConfig(
   expectedUpdatedAt?: string | null,
 ): Promise<SaveResult> {
   const validConfig = parseMorrowConfig(config);
-  const db = database();
-  await ensureSchema(db);
+  const db = await database();
   const now = new Date().toISOString();
   const json = JSON.stringify(validConfig);
 
@@ -80,7 +78,7 @@ export async function saveMorrowConfig(
       )
       .bind(json, now, CONFIG_ROW_ID, expectedUpdatedAt)
       .run();
-    if ((result.meta.changes ?? 0) === 0) return { status: 'conflict' };
+    if (result.changes === 0) return { status: 'conflict' };
     return { status: 'saved', stored: { config: validConfig, updatedAt: now } };
   }
 

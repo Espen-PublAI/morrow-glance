@@ -1,7 +1,5 @@
-import { waitUntil } from 'cloudflare:workers';
-
 import { readSecretValues } from '@/db/block-secrets';
-import { database, ensureSchema } from '@/db/schema-runtime';
+import { database, runInBackground } from '@/db/database';
 import { resolveBlockSource } from '@/lib/morrow/block-source';
 import { pluginServers } from '@/plugins/server';
 import {
@@ -57,9 +55,8 @@ export async function readBlockData(
 ): Promise<Record<string, BlockData>> {
   if (blockIds.length === 0) return {};
   const wanted = new Set(blockIds);
-  const db = database();
-  await ensureSchema(db);
-  const { results } = await db
+  const db = await database();
+  const results = await db
     .prepare(
       'SELECT block_id, data_json, fetched_at, error FROM morrow_block_data',
     )
@@ -76,8 +73,7 @@ export async function writeBlockData(
   data: unknown,
   error: string | null = null,
 ): Promise<BlockData> {
-  const db = database();
-  await ensureSchema(db);
+  const db = await database();
   const fetchedAt = new Date().toISOString();
   const json = JSON.stringify(data ?? null);
   await db
@@ -97,8 +93,7 @@ export async function writeBlockData(
 /** Delete stored data for the given blocks, in small batches. */
 export async function deleteBlockData(blockIds: string[]): Promise<void> {
   if (blockIds.length === 0) return;
-  const db = database();
-  await ensureSchema(db);
+  const db = await database();
   const statement = db.prepare(
     'DELETE FROM morrow_block_data WHERE block_id = ?',
   );
@@ -206,16 +201,6 @@ function refresh(
   return task;
 }
 
-/** Keep a refresh alive past the response when the runtime allows it. */
-function inBackground(task: Promise<unknown>): void {
-  try {
-    waitUntil(task);
-  } catch {
-    // Outside a request context (tests, scripts): let it run detached.
-    void task;
-  }
-}
-
 /**
  * Data for every block with a source. Stale poll sources with existing data
  * refresh in the background and return what is stored; sources that have
@@ -244,7 +229,7 @@ export async function loadBlockData(
       );
       if (!stale) return [block.id, previous ?? emptyData()] as const;
       if (previous?.fetchedAt) {
-        inBackground(refresh(block, previous, config));
+        runInBackground(await database(), refresh(block, previous, config));
         return [block.id, previous] as const;
       }
       return [block.id, await refresh(block, previous, config)] as const;

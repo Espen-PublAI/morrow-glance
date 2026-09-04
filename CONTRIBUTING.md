@@ -15,6 +15,10 @@ npm run dev
 Node.js 22.13 or newer. The dev server runs on `http://localhost:3000` with a
 local D1 database under `.wrangler/` that is created automatically.
 
+To work against the self-hosted target instead, `npm run build:node` and
+`npm run start:node`. That path stores data in SQLite at `./data/morrow.db`,
+which is also what the Docker image uses. Both targets are built in CI.
+
 Before opening a pull request:
 
 ```bash
@@ -41,7 +45,14 @@ lib/morrow/
   settings.ts           Typed readers for plugin settings
   client.ts             Browser access: API client + localStorage fallback
   server-auth.ts        Token check for Admin writes
-db/                     Morrow Server persistence (Cloudflare D1): config and block data
+db/
+  adapter.ts            The storage surface Morrow needs, and nothing more
+  adapters/sqlite.ts    Node, using the runtime's own SQLite (self-hosting)
+  adapters/d1.ts        Cloudflare D1
+  database.ts           Picks the adapter for the runtime, applies the schema
+  morrow-config.ts      The shared configuration row
+  block-data.ts         What each block's data source fetched
+  block-secrets.ts      Per-block secrets for plugin server modules
 app/
   page.tsx              Player at /
   admin/                Admin at /admin
@@ -120,6 +131,17 @@ the server so they never reach a Player.
 2. Append it to `screenPresets` in `lib/morrow/screens/index.ts`.
 3. It appears in Admin's "Add…" menu under Screens. Saved configurations keep
    their own copy, so editing a preset later never changes an existing screen.
+
+## Touching storage
+
+`db/` is the only place that knows about a database, and everything goes
+through `db/adapter.ts`: prepared statements with positional parameters, plus
+a batch. Two adapters implement it, SQLite on Node and D1 on Cloudflare.
+
+If you add a query, keep it plain SQLite that D1 also accepts, and add a case
+to `db/__tests__/sqlite-adapter.test.ts` if you rely on behaviour the adapter
+has to normalise, such as the row count from a conditional write. Adding a
+table means a new file in `migrations/` and a line in `db/schema.ts`.
 
 ## Typography
 

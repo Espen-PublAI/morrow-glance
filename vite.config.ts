@@ -34,6 +34,30 @@ const localBindingConfig = {
     : [],
 };
 
+// Self-hosting builds skip the Cloudflare plugin; storage falls back to SQLite.
+const selfHosted = process.env.MORROW_TARGET === 'node';
+
+/**
+ * `cloudflare:workers` only exists in the Workers runtime. The D1 adapter
+ * imports it, and although a self-hosted build never loads that adapter, the
+ * bundler still has to resolve the import. Give it a stub that throws if it is
+ * ever reached.
+ */
+const stubCloudflareWorkers = {
+  name: 'morrow:stub-cloudflare-workers',
+  resolveId(id: string) {
+    return id === 'cloudflare:workers' ? '\0morrow:cloudflare-workers' : null;
+  },
+  load(id: string) {
+    if (id !== '\0morrow:cloudflare-workers') return null;
+    return [
+      'export const env = {};',
+      'export const waitUntil = () => {};',
+      'export default { env, waitUntil };',
+    ].join('\n');
+  },
+};
+
 export default defineConfig(async () => {
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
@@ -42,7 +66,14 @@ export default defineConfig(async () => {
   process.env.MINIFLARE_REGISTRY_PATH ??= '.wrangler/registry';
 
   // Wrangler snapshots its log path while the Cloudflare plugin is imported.
-  const { cloudflare } = await import('@cloudflare/vite-plugin');
+  const cloudflarePlugins = selfHosted
+    ? []
+    : [
+        (await import('@cloudflare/vite-plugin')).cloudflare({
+          viteEnvironment: { name: 'rsc', childEnvironments: ['ssr'] },
+          config: localBindingConfig,
+        }),
+      ];
 
   return {
     css: { postcss: { plugins: [tailwindcss()] } },
@@ -52,10 +83,8 @@ export default defineConfig(async () => {
     plugins: [
       vinext(),
       sites(),
-      cloudflare({
-        viteEnvironment: { name: 'rsc', childEnvironments: ['ssr'] },
-        config: localBindingConfig,
-      }),
+      ...(selfHosted ? [stubCloudflareWorkers] : []),
+      ...cloudflarePlugins,
     ],
   };
 });

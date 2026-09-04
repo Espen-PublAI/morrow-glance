@@ -16,7 +16,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test",
-    "geo": "node scripts/build-geo.mjs"
+    "geo": "node scripts/build-geo.mjs",
+    "build:node": "MORROW_TARGET=node vinext build",
+    "start:node": "node dist/standalone/server.js"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
