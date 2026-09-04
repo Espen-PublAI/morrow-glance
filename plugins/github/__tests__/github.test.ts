@@ -10,6 +10,8 @@ import {
   fetchGitHub,
   parseCommitActivity,
   parseContributors,
+  parseOwner,
+  visibleWeeks,
   isGitHubData,
   normaliseUser,
   parseContributions,
@@ -58,7 +60,7 @@ describe('settings', () => {
   });
 });
 
-describe('a typo in one field does not hide the others', () => {
+describe('what the repository field accepts', () => {
   const context = {
     env: {},
     timeZone: 'Europe/Oslo',
@@ -66,34 +68,120 @@ describe('a typo in one field does not hide the others', () => {
     secrets: {},
   };
 
-  it('warns about an unparseable repository and still fetches the user', async () => {
+  it('reads a bare name as the whole account or organisation', () => {
+    expect(parseOwner('Aptide-ai')).toBe('Aptide-ai');
+    expect(parseOwner(' @octocat ')).toBe('octocat');
+    expect(parseOwner('https://github.com/Aptide-ai/')).toBe('Aptide-ai');
+    // Anything with a slash is a repository, not an owner.
+    expect(parseOwner('github/docs')).toBeNull();
+    expect(parseOwner('has space')).toBeNull();
+  });
+
+  it('aggregates every repository of an owner, busiest first', async () => {
     const calls: string[] = [];
     vi.stubGlobal('fetch', async (url: string) => {
       calls.push(url);
-      return new Response(JSON.stringify(eventsFixture), {
-        status: 200,
-        headers: { 'content-type': 'application/json' },
-      });
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([
+          { full_name: 'Aptide-ai/api' },
+          { full_name: 'Aptide-ai/web' },
+        ]);
+      }
+      if (url.includes('/repos/Aptide-ai/api/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      if (url.includes('/repos/Aptide-ai/web/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [0, 2, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      throw new Error(`unexpected ${url}`);
     });
+    const data = await fetchGitHub({ repo: 'Aptide-ai' }, context);
+    // Weeks are added together on the week they start, not by position.
+    expect(data.commitActivity?.weeks[0]).toEqual([1, 2, 0, 0, 0, 0, 0]);
+    expect(data.commitActivity?.total).toBe(3);
+    expect(data.commitActivity?.repos).toEqual([
+      { name: 'web', commits: 2 },
+      { name: 'api', commits: 1 },
+    ]);
+    expect(data.commitActivity?.pending).toBe(0);
+    // Stars and contributors are per-repository, so they are not fetched.
+    expect(calls.some((url) => url.includes('/contributors'))).toBe(false);
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps the repositories it could read and counts the rest as pending', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([
+          { full_name: 'Aptide-ai/api' },
+          { full_name: 'Aptide-ai/web' },
+        ]);
+      }
+      if (url.includes('/api/stats/'))
+        return new Response('{}', { status: 202 });
+      return Response.json([
+        { week: 1_788_048_000, days: [0, 2, 0, 0, 0, 0, 0] },
+      ]);
+    });
+    const data = await fetchGitHub({ repo: 'Aptide-ai' }, context);
+    expect(data.commitActivity?.total).toBe(2);
+    expect(data.commitActivity?.pending).toBe(1);
+    vi.unstubAllGlobals();
+  }, 15_000);
+
+  it('falls back to a personal account when there is no such organisation', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      calls.push(url);
+      if (url.includes('/orgs/')) return new Response('[]', { status: 404 });
+      if (url.includes('/users/espen/repos')) {
+        return Response.json([{ full_name: 'espen/glance' }]);
+      }
+      return Response.json([
+        { week: 1_788_048_000, days: [3, 0, 0, 0, 0, 0, 0] },
+      ]);
+    });
+    const data = await fetchGitHub({ repo: 'espen' }, context);
+    expect(data.commitActivity?.total).toBe(3);
+    expect(calls.some((url) => url.includes('/users/espen/repos'))).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
+  it('says plainly when a token cannot see an owner\u2019s repositories', async () => {
+    vi.stubGlobal('fetch', async (url: string) =>
+      url.includes('/orgs/Aptide-ai/repos')
+        ? Response.json([])
+        : new Response('[]', { status: 404 }),
+    );
+    await expect(fetchGitHub({ repo: 'Aptide-ai' }, context)).rejects.toThrow(
+      /no repositories this token can see/,
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it('warns about a field that is neither, and still fetches the user', async () => {
+    vi.stubGlobal('fetch', async () => Response.json(eventsFixture));
     const data = await fetchGitHub(
-      { user: 'Espen-PublAI', repo: 'Aptide-ai' },
+      { user: 'Espen-PublAI', repo: 'a/b/c' },
       context,
     );
     expect(data.events).not.toBeNull();
     expect(data.warnings).toEqual([
-      'Repository: "Aptide-ai" needs an owner, as in Espen-PublAI/Aptide-ai.',
+      'Repository: "a/b/c" is not a repository as owner/name, nor an account or organisation name.',
     ]);
-    // Nothing was requested for the unparseable repository.
-    expect(calls.some((url) => url.includes('/repos/'))).toBe(false);
     vi.unstubAllGlobals();
   });
 
   it('fails only when no field is usable', async () => {
-    await expect(fetchGitHub({ repo: 'Aptide-ai' }, context)).rejects.toThrow(
-      /needs an owner/,
+    await expect(fetchGitHub({ repo: 'a/b/c' }, context)).rejects.toThrow(
+      /not a repository as owner\/name/,
     );
     await expect(fetchGitHub({}, context)).rejects.toThrow(
-      /Enter a GitHub username/,
+      /Enter a repository/,
     );
     await expect(fetchGitHub({ user: 'bad--name' }, context)).rejects.toThrow(
       /not a valid GitHub username/,
@@ -253,7 +341,8 @@ describe('events', () => {
 });
 
 describe('repository commit activity, all contributors', () => {
-  const activity = parseCommitActivity(commitActivityFixture);
+  const now = new Date('2026-09-04T12:00:00Z');
+  const activity = parseCommitActivity(commitActivityFixture, now);
 
   it('reads the year as weeks of seven days, Sunday first', () => {
     expect(activity.weeks).toHaveLength(52);
@@ -277,6 +366,41 @@ describe('repository commit activity, all contributors', () => {
     expect(days).toBeLessThan(372);
   });
 
+  it('counts the seven and twenty-eight days ending today', () => {
+    // The fixture's final week starts Sunday 2026-08-30.
+    const week = Math.floor(Date.UTC(2026, 7, 30) / 1000);
+    const one = parseCommitActivity(
+      [
+        { week: week - 7 * 86_400, total: 0, days: [1, 1, 1, 1, 1, 1, 1] },
+        { week, total: 0, days: [2, 3, 4, 5, 6, 0, 0] },
+      ],
+      new Date('2026-09-03T12:00:00Z'), // Thursday
+    );
+    // The window is the 28th to the 3rd inclusive: 1 + 1 from the previous
+    // week, then 2 on Sunday and 3, 4, 5, 6 through Thursday.
+    expect(one.last7).toBe(1 + 1 + 2 + 3 + 4 + 5 + 6);
+    expect(one.last28).toBe(1 * 7 + 2 + 3 + 4 + 5 + 6);
+    // Days after today are not counted even though GitHub returns the slots.
+    expect(one.total).toBe(1 * 7 + 2 + 3 + 4 + 5 + 6);
+  });
+
+  it('ignores day slots later than today', () => {
+    // GitHub returns the whole current week, including days not yet reached.
+    // A count in one of those must not inflate the trailing windows.
+    const week = Math.floor(Date.UTC(2026, 7, 30) / 1000);
+    const one = parseCommitActivity(
+      [
+        { week: week - 7 * 86_400, total: 0, days: [0, 0, 0, 0, 1, 1, 1] },
+        { week, total: 0, days: [1, 1, 1, 1, 1, 1, 1] },
+      ],
+      new Date('2026-09-02T12:00:00Z'), // Wednesday
+    );
+    // The 27th to the 2nd: three days from the previous week, four from this.
+    expect(one.last7).toBe(7);
+    // Thursday to Saturday are in the response but still ahead of today.
+    expect(one.last28).toBe(3 + 4);
+  });
+
   it('sums the day counts rather than trusting the weekly total', () => {
     const one = parseCommitActivity([
       { week: 1_788_048_000, total: 999, days: [0, 1, 2, 3, 4, 5, 6] },
@@ -291,6 +415,38 @@ describe('repository commit activity, all contributors', () => {
     ).toEqual([4, 5, 0, 0, 0, 0, 0]);
     expect(() => parseCommitActivity([])).toThrow(/no commit activity/);
     expect(() => parseCommitActivity({})).toThrow(/no commit activity/);
+  });
+});
+
+describe('how much of the graph is worth drawing', () => {
+  const empty = () => [0, 0, 0, 0, 0, 0, 0];
+
+  it('keeps every week when the repository has been busy all year', () => {
+    const busyYear = parseCommitActivity(commitActivityFixture, new Date());
+    expect(visibleWeeks(busyYear.weeks)).toHaveLength(52);
+  });
+
+  it('drops leading blank weeks but never goes below the floor', () => {
+    const weeks = Array.from({ length: 52 }, (_, index) =>
+      index === 51 ? [0, 0, 0, 0, 14, 12, 0] : empty(),
+    );
+    // One active week would be a single useless column, so a floor applies.
+    expect(visibleWeeks(weeks, 16)).toHaveLength(16);
+    expect(visibleWeeks(weeks, 16).at(-1)).toEqual([0, 0, 0, 0, 14, 12, 0]);
+  });
+
+  it('trims to the repository life when that is more than the floor', () => {
+    const weeks = Array.from({ length: 52 }, (_, index) =>
+      index >= 22 ? [1, 0, 0, 0, 0, 0, 0] : empty(),
+    );
+    expect(visibleWeeks(weeks, 16)).toHaveLength(30);
+  });
+
+  it('leaves a fully blank or already-active graph alone', () => {
+    const blank = Array.from({ length: 52 }, empty);
+    expect(visibleWeeks(blank, 16)).toHaveLength(52);
+    const busy = Array.from({ length: 52 }, () => [1, 0, 0, 0, 0, 0, 0]);
+    expect(visibleWeeks(busy, 16)).toHaveLength(52);
   });
 });
 

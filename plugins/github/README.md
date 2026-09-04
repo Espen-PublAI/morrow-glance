@@ -17,7 +17,10 @@ everybody's commits, not just yours, and needs no token.
 
 ## Settings
 
-- **Repository** as `owner/name` for the two repository views. A pasted GitHub URL works too.
+- **Repository or organisation** for the two repository views. Either
+  `owner/name` for one repository, or a bare `owner` for everything that owner
+  has, which is what you want for a team or a company. A pasted GitHub URL
+  works for both.
 - **GitHub username** for the two person views.
 - **Personal access token**, stored as a per-block secret and never sent to a
   Player. Alternatively set `MORROW_GITHUB_TOKEN` on Morrow Server for every
@@ -41,6 +44,25 @@ the budget with it, so a token is effectively required there.
 Create a fine-grained token at github.com/settings/tokens with no repository
 access if you only want public data. Grant read access to the repositories
 you want private activity for. Nothing in this plugin writes.
+
+## A whole organisation
+
+Put a bare name in the repository field, such as `Aptide-ai`, and the commit
+activity view covers everything that owner has rather than one repository. It
+lists the owner's ten most recently pushed repositories, adds their weekly
+commits together on the week each week starts, and shows the busiest
+repositories by name instead of the busiest contributors.
+
+That costs eleven requests per refresh rather than three, so a token is
+required in practice: the unauthenticated allowance is sixty an hour for the
+whole IP address.
+
+Private repositories need a token that can actually see them. A fine-grained
+token created for "Public repositories" cannot, even if you are an owner of
+the organisation. Create the token with the **organisation** as its resource
+owner, select the repositories, and grant **Contents: read-only**. Some
+organisations require an owner to approve the token before it works. If the
+token cannot see anything, the block says so rather than looking empty.
 
 ## Statistics GitHub computes lazily
 

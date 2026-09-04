@@ -4,7 +4,12 @@ import { readStringSetting } from '@/lib/morrow/settings';
 import { definePlugin, type PluginViewProps } from '@/lib/morrow/types';
 
 import { compactNumber, describeEvent, relativeTime } from './events';
-import { contributionLevel, isGitHubData, type GitHubData } from './github';
+import {
+  contributionLevel,
+  isGitHubData,
+  visibleWeeks,
+  type GitHubData,
+} from './github';
 
 import './plugin.css';
 
@@ -267,27 +272,67 @@ function CommitsView(props: PluginViewProps) {
     );
   }
 
+  const weeks = activity ? visibleWeeks(activity.weeks) : [];
+  const repoCount = activity?.repos.length ?? 0;
   const meta = [
-    activity
-      ? `${activity.total.toLocaleString('en-GB')} commits in the last year`
-      : 'Commit graph on the way',
-    people?.total ? `${compactNumber(people.total)} contributors` : '',
+    repoCount > 0
+      ? `${repoCount} ${repoCount === 1 ? 'repository' : 'repositories'}`
+      : people?.total
+        ? `${compactNumber(people.total)} contributors`
+        : '',
+    activity && activity.pending > 0
+      ? `${activity.pending} still being computed`
+      : '',
+    weeks.length > 0 && weeks.length < 52
+      ? `graph: last ${weeks.length} weeks`
+      : '',
+    activity ? '' : 'commit graph on the way',
   ]
     .filter(Boolean)
     .join(' \u00b7 ');
 
   return (
-    <Frame label={label} meta={meta}>
-      {activity && <DotGrid weeks={activity.weeks} />}
-      {people && people.top.length > 0 && (
+    <Frame label={label} meta={meta || undefined}>
+      {activity && (
+        // Figures first: they stay readable however quiet the repository is,
+        // where a mostly empty grid does not.
+        <ol className="github-figures">
+          <li>
+            <strong>{compactNumber(activity.last7)}</strong>
+            <small>commits this week</small>
+          </li>
+          <li>
+            <strong>{compactNumber(activity.last28)}</strong>
+            <small>last 28 days</small>
+          </li>
+          <li>
+            <strong>{compactNumber(activity.total)}</strong>
+            <small>last year</small>
+          </li>
+        </ol>
+      )}
+      {weeks.length > 0 && <DotGrid weeks={weeks} />}
+      {activity && activity.repos.length > 0 ? (
         <ol className="github-top">
-          {people.top.slice(0, 4).map((person) => (
-            <li key={person.login}>
-              <strong>{person.login}</strong>
-              <span>{compactNumber(person.commits)}</span>
+          {activity.repos.slice(0, 4).map((repo) => (
+            <li key={repo.name}>
+              <strong>{repo.name}</strong>
+              <span>{compactNumber(repo.commits)}</span>
             </li>
           ))}
         </ol>
+      ) : (
+        people &&
+        people.top.length > 0 && (
+          <ol className="github-top">
+            {people.top.slice(0, 4).map((person) => (
+              <li key={person.login}>
+                <strong>{person.login}</strong>
+                <span>{compactNumber(person.commits)}</span>
+              </li>
+            ))}
+          </ol>
+        )
       )}
     </Frame>
   );
@@ -310,9 +355,9 @@ export const plugin = definePlugin({
     settings: [
       {
         id: 'repo',
-        label: 'Repository',
+        label: 'Repository or organisation',
         type: 'text',
-        placeholder: 'owner/name, for the two repository views',
+        placeholder: 'owner/name, or an organisation name for all of it',
       },
       {
         id: 'user',

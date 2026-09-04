@@ -48,12 +48,33 @@ export interface ActivityEvent {
 }
 
 /** The repository's own week-by-week commits, every contributor included. */
+export interface RepoRef {
+  owner: string;
+  name: string;
+}
+
+export interface RepoCommits {
+  name: string;
+  commits: number;
+}
+
 export interface CommitActivity {
   /** Oldest week first. Seven counts per week, Sunday first. */
   weeks: number[][];
+  /** Commits in the whole window GitHub returned, which is 52 weeks. */
   total: number;
+  /** Commits in the seven and twenty-eight days ending today. */
+  last7: number;
+  last28: number;
   from: string;
   to: string;
+  /**
+   * When the activity covers a whole account or organisation, the busiest
+   * repositories in it. Empty for a single repository.
+   */
+  repos: RepoCommits[];
+  /** Repositories whose statistics GitHub had not finished computing. */
+  pending: number;
 }
 
 export interface TopContributor {
@@ -116,9 +137,20 @@ export function normaliseUser(input: string): string | null {
   return USERNAME.test(trimmed) ? trimmed : null;
 }
 
-export function parseRepoName(
-  input: string,
-): { owner: string; name: string } | null {
+/**
+ * A bare account or organisation name, meaning "everything this owner has".
+ * `Aptide-ai` is a perfectly reasonable thing to type when you want the
+ * organisation rather than one of its repositories.
+ */
+export function parseOwner(input: string): string | null {
+  const trimmed = input
+    .trim()
+    .replace(/^https?:\/\/github\.com\//i, '')
+    .replace(/\/+$/, '');
+  return trimmed.includes('/') ? null : normaliseUser(trimmed);
+}
+
+export function parseRepoName(input: string): RepoRef | null {
   const trimmed = input
     .trim()
     .replace(/^https?:\/\/github\.com\//i, '')
@@ -203,30 +235,94 @@ export function parseEvents(json: unknown): ActivityEvent[] {
  * with `days` running Sunday to Saturday, which is already the shape the dot
  * grid wants.
  */
-export function parseCommitActivity(json: unknown): CommitActivity {
+/**
+ * Add several repositories' weekly arrays together, matched on the week they
+ * start rather than on position, so a repository that reports a different
+ * number of weeks cannot shift the others.
+ */
+export function mergeCommitActivity(sources: unknown[]): unknown[] {
+  const byWeek = new Map<number, number[]>();
+  for (const source of sources) {
+    if (!Array.isArray(source)) continue;
+    for (const raw of source) {
+      const week = rec(raw);
+      const start = num(week.week, NaN);
+      if (!Number.isFinite(start)) continue;
+      const days = Array.isArray(week.days) ? week.days : [];
+      const row = byWeek.get(start) ?? [0, 0, 0, 0, 0, 0, 0];
+      for (let index = 0; index < 7; index += 1) {
+        row[index] = (row[index] ?? 0) + num(days[index]);
+      }
+      byWeek.set(start, row);
+    }
+  }
+  return [...byWeek.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([week, days]) => ({ week, days }));
+}
+
+export function parseCommitActivity(
+  json: unknown,
+  now: Date = new Date(),
+): CommitActivity {
   if (!Array.isArray(json) || json.length === 0) {
     throw new Error('GitHub returned no commit activity.');
   }
+  const day = (time: number) =>
+    new Date(time * 1000).toISOString().slice(0, 10);
+  /** Every day slot with its calendar date, so trailing windows are exact. */
+  const dated: Array<{ date: string; count: number }> = [];
   let total = 0;
-  let from = '';
-  let to = '';
   const weeks = json.map((raw) => {
     const week = rec(raw);
     const days = Array.isArray(week.days) ? week.days : [];
-    const row = Array.from({ length: 7 }, (_, day) => num(days[day]));
+    const row = Array.from({ length: 7 }, (_, index) => num(days[index]));
     total += row.reduce((sum, count) => sum + count, 0);
     // `week` is the Unix timestamp of that week's Sunday.
     const start = num(week.week, NaN);
     if (Number.isFinite(start)) {
-      const sunday = new Date(start * 1000);
-      const saturday = new Date((start + 6 * 86_400) * 1000);
-      const iso = (date: Date) => date.toISOString().slice(0, 10);
-      if (!from || iso(sunday) < from) from = iso(sunday);
-      if (!to || iso(saturday) > to) to = iso(saturday);
+      row.forEach((count, index) => {
+        dated.push({ date: day(start + index * 86_400), count });
+      });
     }
     return row;
   });
-  return { weeks, total, from, to };
+
+  const today = now.toISOString().slice(0, 10);
+  const daysAgo = (count: number) =>
+    new Date(now.getTime() - count * 86_400_000).toISOString().slice(0, 10);
+  const sumSince = (since: string) =>
+    dated
+      .filter((entry) => entry.date > since && entry.date <= today)
+      .reduce((sum, entry) => sum + entry.count, 0);
+
+  const dates = dated.map((entry) => entry.date).sort();
+  return {
+    weeks,
+    total,
+    last7: sumSince(daysAgo(7)),
+    last28: sumSince(daysAgo(28)),
+    from: dates[0] ?? '',
+    to: dates[dates.length - 1] ?? '',
+    repos: [],
+    pending: 0,
+  };
+}
+
+/**
+ * The stretch of the graph worth drawing. A year of columns is the right
+ * picture for a repository that has been busy all year, and the wrong one for
+ * a repository a week old: 51 of 52 columns are blank and the dots shrink to
+ * dust. Leading empty weeks are dropped, never below a floor, so a young
+ * repository gets a few wide columns instead of a year of nothing.
+ */
+export function visibleWeeks(weeks: number[][], minWeeks = 16): number[][] {
+  const firstActive = weeks.findIndex((week) =>
+    week.some((count) => count > 0),
+  );
+  if (firstActive <= 0) return weeks;
+  const start = Math.min(firstActive, Math.max(0, weeks.length - minWeeks));
+  return weeks.slice(start);
 }
 
 /** `/contributors` is ordered by commits, so the first entries are the top. */
@@ -379,7 +475,7 @@ async function fetchEvents(
 }
 
 async function fetchRepo(
-  { owner, name }: { owner: string; name: string },
+  { owner, name }: RepoRef,
   token: string | undefined,
 ): Promise<RepoPulse> {
   const base = `${API}/repos/${owner}/${name}`;
@@ -432,15 +528,98 @@ async function requestStats(
 }
 
 async function fetchCommitActivity(
-  { owner, name }: { owner: string; name: string },
+  { owner, name }: RepoRef,
   token: string | undefined,
+  now: Date,
 ): Promise<CommitActivity> {
   return parseCommitActivity(
     await requestStats(
       `${API}/repos/${owner}/${name}/stats/commit_activity`,
       token,
     ),
+    now,
   );
+}
+
+/** How many of an owner's repositories to aggregate, busiest pushed first. */
+const OWNER_REPO_LIMIT = 10;
+
+/**
+ * An owner's repositories, most recently pushed first. Organisations and
+ * personal accounts use different paths, and a token decides whether private
+ * repositories are visible at all.
+ */
+async function listOwnerRepos(
+  owner: string,
+  token: string | undefined,
+): Promise<RepoRef[]> {
+  const query = `?sort=pushed&per_page=${OWNER_REPO_LIMIT}`;
+  for (const path of [`orgs/${owner}/repos`, `users/${owner}/repos`]) {
+    const response = await request(`${API}/${path}${query}`, token);
+    if (response.status === 404) continue;
+    if (!response.ok) throw new Error(`GitHub answered ${response.status}.`);
+    const body = await readJson(response);
+    if (!Array.isArray(body)) continue;
+    const repos = body
+      .map((raw) => str(rec(raw).full_name))
+      .filter((full): full is string => full !== null)
+      .map((full) => parseRepoName(full))
+      .filter((ref): ref is RepoRef => ref !== null);
+    if (repos.length > 0) return repos;
+    throw new Error(
+      `${owner} has no repositories this token can see. A fine-grained token needs that owner selected and read access to its repositories.`,
+    );
+  }
+  throw new Error(`No GitHub account or organisation called ${owner}.`);
+}
+
+/**
+ * Every repository of one owner, added together. This is the view for "how is
+ * our work going" rather than "how is this one repository going", so it costs
+ * one request to list the repositories and one per repository after that.
+ */
+async function fetchOwnerActivity(
+  owner: string,
+  token: string | undefined,
+  now: Date,
+): Promise<CommitActivity> {
+  const repos = await listOwnerRepos(owner, token);
+  const results = await Promise.all(
+    repos.map(async (ref) => {
+      try {
+        const raw = await requestStats(
+          `${API}/repos/${ref.owner}/${ref.name}/stats/commit_activity`,
+          token,
+        );
+        return { ref, raw };
+      } catch {
+        // One repository still being computed must not lose the others.
+        return { ref, raw: null };
+      }
+    }),
+  );
+  const usable = results.filter((result) => result.raw !== null);
+  if (usable.length === 0) {
+    throw new Error(
+      'GitHub is still working out the statistics for these repositories; they appear on the next refresh.',
+    );
+  }
+  const merged = parseCommitActivity(
+    mergeCommitActivity(usable.map((result) => result.raw)),
+    now,
+  );
+  const breakdown = usable
+    .map((result) => ({
+      name: result.ref.name,
+      commits: parseCommitActivity([...(result.raw as unknown[])], now).total,
+    }))
+    .filter((entry) => entry.commits > 0)
+    .sort((a, b) => b.commits - a.commits);
+  return {
+    ...merged,
+    repos: breakdown,
+    pending: results.length - usable.length,
+  };
 }
 
 /**
@@ -450,7 +629,7 @@ async function fetchCommitActivity(
  * names and totals.
  */
 async function fetchContributors(
-  { owner, name }: { owner: string; name: string },
+  { owner, name }: RepoRef,
   token: string | undefined,
 ): Promise<RepoContributors> {
   const base = `${API}/repos/${owner}/${name}/contributors`;
@@ -507,6 +686,8 @@ export async function fetchGitHub(
   const rawRepo = readStringSetting(settings, 'repo');
   const user = rawUser ? normaliseUser(rawUser) : null;
   const repoName = rawRepo ? parseRepoName(rawRepo) : null;
+  // A bare name means the whole account or organisation.
+  const owner = rawRepo && !repoName ? parseOwner(rawRepo) : null;
 
   // An unusable entry in one field becomes a warning, not a failure. Both
   // fields are optional and feed different views, so a typo in the repository
@@ -517,15 +698,15 @@ export async function fetchGitHub(
       `Activity: "${rawUser}" is not a valid GitHub username.`,
     );
   }
-  if (rawRepo && !repoName) {
+  if (rawRepo && !repoName && !owner) {
     fieldWarnings.push(
-      `Repository: "${rawRepo}" needs an owner, as in ${user ?? 'owner'}/${rawRepo}.`,
+      `Repository: "${rawRepo}" is not a repository as owner/name, nor an account or organisation name.`,
     );
   }
-  if (!user && !repoName) {
+  if (!user && !repoName && !owner) {
     throw new Error(
       fieldWarnings[0]?.replace(/^\w+: /, '') ??
-        'Enter a GitHub username, a repository as owner/name, or both.',
+        'Enter a repository as owner/name, an account or organisation name, or a GitHub username.',
     );
   }
   const token =
@@ -565,13 +746,28 @@ export async function fetchGitHub(
       );
     }
   }
+  if (owner) {
+    tasks.push(
+      attempt('Commit activity', async () => {
+        data.commitActivity = await fetchOwnerActivity(
+          owner,
+          token,
+          context.now,
+        );
+      }),
+    );
+  }
   if (repoName) {
     tasks.push(
       attempt('Repository', async () => {
         data.repo = await fetchRepo(repoName, token);
       }),
       attempt('Commit activity', async () => {
-        data.commitActivity = await fetchCommitActivity(repoName, token);
+        data.commitActivity = await fetchCommitActivity(
+          repoName,
+          token,
+          context.now,
+        );
       }),
       attempt('Contributors', async () => {
         data.topContributors = await fetchContributors(repoName, token);

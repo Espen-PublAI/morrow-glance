@@ -103,7 +103,11 @@ describe('contributions view', () => {
 });
 
 describe('repository commit activity', () => {
-  const activity = parseCommitActivity(commitActivityFixture);
+  // The fixture's final week is the week of 2026-08-30, so pin "now" inside it.
+  const activity = parseCommitActivity(
+    commitActivityFixture,
+    new Date('2026-09-04T12:00:00Z'),
+  );
   const people = parseContributors(contributorsFixture, 427);
   const repoSettings = { user: '', repo: 'github/docs' };
 
@@ -113,15 +117,46 @@ describe('repository commit activity', () => {
       stored({ commitActivity: activity, topContributors: people }),
       repoSettings,
     );
+    // Figures stay readable however sparse the grid is.
+    expect(screen.getByText('commits this week')).toBeTruthy();
+    expect(screen.getByText('last 28 days')).toBeTruthy();
+    // 10,474 is shown compactly, as a wall needs.
+    expect(screen.getByText('10.5k')).toBeTruthy();
+    // A repository busy all year keeps all 52 columns.
     expect(container.querySelectorAll('.github-heatmap circle')).toHaveLength(
       52 * 7,
     );
-    expect(
-      screen.getByText(/10,474 commits in the last year · 427 contributors/),
-    ).toBeTruthy();
+    expect(screen.getByText(/427 contributors/)).toBeTruthy();
     expect(screen.getByText('Octomerger')).toBeTruthy();
     // 15,994 rounds to 16k rather than 16.0k, which reads better on a wall.
     expect(screen.getByText('16k')).toBeTruthy();
+  });
+
+  it('narrows the grid for a young repository instead of a year of blanks', () => {
+    const quiet = {
+      weeks: Array.from({ length: 52 }, (_, index) =>
+        index === 51 ? [0, 0, 0, 0, 14, 12, 0] : [0, 0, 0, 0, 0, 0, 0],
+      ),
+      total: 26,
+      last7: 26,
+      last28: 26,
+      from: '2025-09-07',
+      to: '2026-09-05',
+      repos: [],
+      pending: 0,
+    };
+    const { container } = show(
+      'commits',
+      stored({ commitActivity: quiet }),
+      repoSettings,
+    );
+    // 16 columns rather than 52, so the dots are legible.
+    expect(container.querySelectorAll('.github-heatmap circle')).toHaveLength(
+      16 * 7,
+    );
+    expect(screen.getByText(/graph: last 16 weeks/)).toBeTruthy();
+    // The numbers say what the picture cannot.
+    expect(screen.getAllByText('26').length).toBeGreaterThanOrEqual(3);
   });
 
   it('shows the graph alone when GitHub has not worked out the contributors', () => {
@@ -136,7 +171,8 @@ describe('repository commit activity', () => {
     expect(
       container.querySelectorAll('.github-heatmap circle').length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText('10,474 commits in the last year')).toBeTruthy();
+    // 10,474 is shown compactly, as a wall needs.
+    expect(screen.getByText('10.5k')).toBeTruthy();
     expect(container.querySelector('.github-top')).toBeNull();
   });
 
@@ -155,7 +191,7 @@ describe('repository commit activity', () => {
     // The part that arrived is on screen rather than discarded.
     expect(screen.getByText('Octomerger')).toBeTruthy();
     expect(
-      screen.getByText(/Commit graph on the way · 427 contributors/),
+      screen.getByText(/427 contributors · commit graph on the way/),
     ).toBeTruthy();
     expect(container.querySelector('.github-heatmap')).toBeNull();
   });
