@@ -100,7 +100,7 @@ function Empty({
 
 function NowView(props: PluginViewProps) {
   const { now, data } = props;
-  const { city, label, hasPlace } = usePlace(props);
+  const { label, hasPlace } = usePlace(props);
   const conditions = data ? current(data.data, now) : undefined;
   if (!conditions)
     return <Empty label={label} hasPlace={hasPlace} error={data?.error} />;
@@ -116,11 +116,10 @@ function NowView(props: PluginViewProps) {
         <strong>{degrees(conditions.temperature)}</strong>
       </div>
       <span className="plugin-meta">
-        {city} · {conditions.windSpeed.toFixed(0)} m/s
+        {conditions.windSpeed.toFixed(0)} m/s
         {conditions.precipitation > 0
           ? ` · ${conditions.precipitation.toFixed(1)} mm`
-          : ''}{' '}
-        · MET Norway
+          : ''}
       </span>
     </div>
   );
@@ -128,7 +127,7 @@ function NowView(props: PluginViewProps) {
 
 function TodayView(props: PluginViewProps) {
   const { now, data } = props;
-  const { zone, city, label, hasPlace } = usePlace(props);
+  const { zone, label, hasPlace } = usePlace(props);
   const hours = data ? upcomingHours(data.data, now, 6, 2) : [];
   if (hours.length === 0)
     return <Empty label={label} hasPlace={hasPlace} error={data?.error} />;
@@ -145,14 +144,13 @@ function TodayView(props: PluginViewProps) {
           </li>
         ))}
       </ol>
-      <span className="plugin-meta">{city} · MET Norway</span>
     </div>
   );
 }
 
 function WeekView(props: PluginViewProps) {
   const { data } = props;
-  const { zone, city, label, hasPlace } = usePlace(props);
+  const { zone, label, hasPlace } = usePlace(props);
   const days = data ? dailyForecast(data.data, zone, 7) : [];
   if (days.length === 0)
     return <Empty label={label} hasPlace={hasPlace} error={data?.error} />;
@@ -179,7 +177,6 @@ function WeekView(props: PluginViewProps) {
           </li>
         ))}
       </ol>
-      <span className="plugin-meta">{city} · MET Norway</span>
     </div>
   );
 }
