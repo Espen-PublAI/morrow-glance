@@ -118,7 +118,7 @@ A block can get live data without anyone writing code. In Admin, select a block 
 
 Views receive the data as a `data` prop. The built-in **Value** plugin shows one field from it with a dotted path such as `main.temp`. Plugins that know where their data lives can declare `source(settings)` in their manifest instead; the **Weather** plugin builds its MET Norway URL from the picked city's coordinates, so there is nothing to configure beyond the city.
 
-Plugins that need credentials add a `server.ts` beside their `plugin.tsx`. It runs only in Morrow Server, reads secrets from the environment, and returns the data the views get. The **Calendar** plugin uses this to read Microsoft 365 calendars, either from a published Outlook link stored as a per-block secret, or live through Microsoft Graph with application permissions; see `plugins/calendar/README.md`.
+Plugins that need credentials add a `server.ts` beside their `plugin.tsx`. It runs only in Morrow Server, reads secrets from the environment, and returns the data the views get. The **Calendar** plugin uses this to read Microsoft 365 calendars, either from a published Outlook link stored as a per-block secret, or live through Microsoft Graph with application permissions; see `plugins/calendar/README.md`. The **GitHub** plugin does the same with a personal access token for a contribution heatmap, an activity feed, or a repository's stars and open work; see `plugins/github/README.md`.
 
 **Per-block secrets.** A `secret` setting is stored on Morrow Server for that block only, through `PUT /api/blocks/:id/secrets`, and is never returned or written into the configuration. Plugin server modules receive it in `context.secrets`. Secrets are removed when their block is deleted.
 

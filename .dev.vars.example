@@ -8,3 +8,9 @@ MORROW_WEBHOOK_TOKEN=replace-with-a-long-random-value
 MORROW_MS_TENANT_ID=
 MORROW_MS_CLIENT_ID=
 MORROW_MS_CLIENT_SECRET=
+
+# GitHub plugin: optional. A fine-grained personal access token used for every
+# GitHub block that has no token of its own. Needed for contribution heatmaps
+# and strongly recommended on Cloudflare, where the unauthenticated limit is
+# shared with other tenants. See plugins/github/README.md.
+MORROW_GITHUB_TOKEN=

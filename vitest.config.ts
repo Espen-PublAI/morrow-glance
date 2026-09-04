@@ -12,6 +12,7 @@ export default defineConfig({
       'lib/**/*.test.ts',
       'db/**/*.test.ts',
       'plugins/**/*.test.ts',
+      'plugins/**/*.test.tsx',
       'components/**/*.test.tsx',
     ],
     // Node by default; component tests opt into a DOM with a docblock:

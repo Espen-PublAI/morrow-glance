@@ -1,0 +1,14 @@
+{
+  "full_name": "github/docs",
+  "name": "docs",
+  "description": "The open-source repo for docs.github.com",
+  "stargazers_count": 20778,
+  "forks_count": 68557,
+  "open_issues_count": 67,
+  "pushed_at": "2026-09-03T23:28:07Z",
+  "default_branch": "main",
+  "language": "TypeScript",
+  "archived": false,
+  "private": false,
+  "html_url": "https://github.com/github/docs"
+}
