@@ -191,6 +191,12 @@ export interface PluginServerContext {
 export interface PluginServer {
   /** How often to refresh while a screen shows the block. */
   intervalSeconds: number;
+  /**
+   * Blocks whose plugin, settings and data key all match fetch once between
+   * them, and share the result. Defaults to the view, since two views are
+   * assumed to want different data unless the plugin says otherwise.
+   */
+  dataKey?: (settings: PluginSettings, view: string) => string;
   fetch: (
     settings: PluginSettings,
     context: PluginServerContext,

@@ -22,8 +22,10 @@ crowding a block: **commit graph**, **figures**, **people**, and **stars and
 open work**. Put two or three side by side rather than trying to fit
 everything into one.
 
-They share the same fetched data, so several blocks pointed at the same
-repository cost one fetch between them.
+Several blocks pointed at the same repository cost one fetch between them:
+Morrow Server groups blocks by what they fetch and stores one result against
+all of them. The four repository views share a fetch, and the two person views
+share another.
 
 A token, though, is stored per block. If you use more than one GitHub block,
 set `MORROW_GITHUB_TOKEN` on Morrow Server once instead of pasting the token

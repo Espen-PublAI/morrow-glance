@@ -158,15 +158,21 @@ export const ownSource: SourceResolver = (block) => block.data;
  * Identity of a block's source. When it changes, stored data belongs to the
  * old source and must not be shown against the new one.
  */
+/**
+ * Identifies what a block's data is fetched from. Two blocks with the same key
+ * want the same bytes, and a block whose key changes must drop what it stored.
+ */
 export function sourceKey(
   source: BlockDataSource | undefined,
   settings: PluginSettings = {},
+  plugin = '',
 ): string | null {
   if (!source) return null;
   if (source.kind === 'webhook') return 'webhook';
   if (source.kind === 'poll') return `poll:${source.url}`;
-  // A plugin fetch depends on the block's settings; a change means new data.
-  return `plugin:${JSON.stringify(settings)}`;
+  // A plugin fetch depends on which plugin it is and on the block's settings;
+  // a change to either means different data.
+  return `plugin:${plugin}:${JSON.stringify(settings)}`;
 }
 
 /**
@@ -180,13 +186,18 @@ export function blockDataToDrop(
 ): string[] {
   const nextKeys = new Map(
     blocksWithSources(next, resolve).map(
-      (block) => [block.id, sourceKey(resolve(block), block.settings)] as const,
+      (block) =>
+        [
+          block.id,
+          sourceKey(resolve(block), block.settings, block.plugin),
+        ] as const,
     ),
   );
   return blocksWithSources(previous, resolve)
     .filter(
       (block) =>
-        nextKeys.get(block.id) !== sourceKey(resolve(block), block.settings),
+        nextKeys.get(block.id) !==
+        sourceKey(resolve(block), block.settings, block.plugin),
     )
     .map((block) => block.id);
 }

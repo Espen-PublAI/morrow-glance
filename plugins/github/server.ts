@@ -10,5 +10,9 @@ import { fetchGitHub } from './github';
  */
 export const server = definePluginServer({
   intervalSeconds: 300,
+  // The four repository views want the same fetch, and the two person views
+  // want the same one as each other, so blocks of either kind share a call.
+  dataKey: (_settings, view) =>
+    view === 'heatmap' || view === 'activity' ? 'person' : 'repository',
   fetch: fetchGitHub,
 });

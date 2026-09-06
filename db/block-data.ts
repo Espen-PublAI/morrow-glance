@@ -9,6 +9,7 @@ import {
   isAllowedSourceUrl,
   isStale,
   readBodyWithLimit,
+  sourceKey,
 } from '@/lib/morrow/sources';
 import type { BlockData, GlanceBlock, MorrowConfig } from '@/lib/morrow/types';
 
@@ -68,25 +69,32 @@ export async function readBlockData(
   );
 }
 
+/** Store one fetch against every block that shares it. */
 export async function writeBlockData(
-  blockId: string,
+  blockIds: string | string[],
   data: unknown,
   error: string | null = null,
 ): Promise<BlockData> {
+  const ids = typeof blockIds === 'string' ? [blockIds] : blockIds;
   const db = await database();
   const fetchedAt = new Date().toISOString();
   const json = JSON.stringify(data ?? null);
-  await db
-    .prepare(
-      `INSERT INTO morrow_block_data (block_id, data_json, fetched_at, error)
+  const statement = db.prepare(
+    `INSERT INTO morrow_block_data (block_id, data_json, fetched_at, error)
        VALUES (?, ?, ?, ?)
        ON CONFLICT(block_id) DO UPDATE SET
          data_json = excluded.data_json,
          fetched_at = excluded.fetched_at,
          error = excluded.error`,
-    )
-    .bind(blockId, json, fetchedAt, error)
-    .run();
+  );
+  // D1 caps the parameters in one statement, so write in modest batches.
+  for (let index = 0; index < ids.length; index += 20) {
+    await db.batch(
+      ids
+        .slice(index, index + 20)
+        .map((id) => statement.bind(id, json, fetchedAt, error)),
+    );
+  }
   return { data, fetchedAt, error };
 }
 
@@ -115,11 +123,11 @@ export async function reconcileBlockData(
 
 /** Record a failed fetch without discarding the last good data. */
 async function writeBlockError(
-  blockId: string,
+  blockIds: string[],
   previous: BlockData | undefined,
   error: string,
 ) {
-  return writeBlockData(blockId, previous?.data ?? null, error);
+  return writeBlockData(blockIds, previous?.data ?? null, error);
 }
 
 async function fetchJson(url: string): Promise<unknown> {
@@ -174,31 +182,54 @@ async function fetchViaPlugin(
 // fan out into duplicate fetches.
 const inFlight = new Map<string, Promise<BlockData>>();
 
+/**
+ * What a block's data is fetched from, at the granularity a fetch happens.
+ * Blocks that agree on this want the same bytes: a plugin can say that several
+ * of its views share one fetch, and otherwise views are kept apart.
+ */
+function fetchKey(block: GlanceBlock): string {
+  const source = resolveBlockSource(block);
+  const base = sourceKey(source, block.settings ?? {}, block.plugin);
+  if (!source || base === null) return `block:${block.id}`;
+  if (source.kind !== 'plugin') return base;
+  const server = pluginServers[block.plugin];
+  const view =
+    server?.dataKey?.(block.settings ?? {}, block.view) ?? block.view;
+  return `${base}|${view}`;
+}
+
+/**
+ * Fetch once and store the result against every block that shares the fetch,
+ * so putting three views of one repository on a page costs one call, not
+ * three.
+ */
 function refresh(
   block: GlanceBlock,
   previous: BlockData | undefined,
   config: MorrowConfig,
+  shareWith: string[] = [block.id],
 ): Promise<BlockData> {
   const source = resolveBlockSource(block);
   if (!source || source.kind === 'webhook')
     return Promise.resolve(previous ?? emptyData());
-  const running = inFlight.get(block.id);
+  const key = fetchKey(block);
+  const running = inFlight.get(key);
   if (running) return running;
   const fetched =
     source.kind === 'poll'
       ? fetchJson(source.url)
       : fetchViaPlugin(block, config);
   const task = fetched
-    .then((data) => writeBlockData(block.id, data))
+    .then((data) => writeBlockData(shareWith, data))
     .catch((cause: unknown) =>
       writeBlockError(
-        block.id,
+        shareWith,
         previous,
         cause instanceof Error ? cause.message : 'Fetch failed.',
       ),
     )
-    .finally(() => inFlight.delete(block.id));
-  inFlight.set(block.id, task);
+    .finally(() => inFlight.delete(key));
+  inFlight.set(key, task);
   return task;
 }
 
@@ -215,25 +246,53 @@ export async function loadBlockData(
   const blocks = blocksWithSources(config, resolveBlockSource);
   const stored = await readBlockData(blocks.map((block) => block.id));
 
-  const results = await Promise.all(
-    blocks.map(async (block) => {
-      const previous = stored[block.id];
-      const source = resolveBlockSource(block);
-      if (!source || source.kind === 'webhook')
-        return [block.id, previous ?? emptyData()] as const;
+  // Blocks that fetch the same thing are refreshed together, so three views of
+  // one repository cost one call rather than three.
+  const groups = new Map<string, GlanceBlock[]>();
+  for (const block of blocks) {
+    const key = fetchKey(block);
+    groups.set(key, [...(groups.get(key) ?? []), block]);
+  }
 
+  const results: Array<readonly [string, BlockData]> = [];
+  await Promise.all(
+    [...groups.values()].map(async (group) => {
+      const lead = group[0];
+      if (!lead) return;
+      const ids = group.map((block) => block.id);
+      const keep = (data: BlockData) => {
+        for (const id of ids) results.push([id, stored[id] ?? data] as const);
+      };
+      const source = resolveBlockSource(lead);
+      if (!source || source.kind === 'webhook') {
+        keep(emptyData());
+        return;
+      }
+      // Judge staleness on the freshest of the group: one of them having
+      // fetched recently means the shared data is recent.
+      const previous = ids
+        .map((id) => stored[id])
+        .filter((data): data is BlockData => data !== undefined)
+        .sort((a, b) =>
+          (b.fetchedAt ?? '').localeCompare(a.fetchedAt ?? ''),
+        )[0];
       const stale = isStale(
         source,
         previous?.fetchedAt ?? null,
         Date.now(),
         Boolean(previous?.error),
       );
-      if (!stale) return [block.id, previous ?? emptyData()] as const;
-      if (previous?.fetchedAt) {
-        runInBackground(await database(), refresh(block, previous, config));
-        return [block.id, previous] as const;
+      if (!stale) {
+        keep(previous ?? emptyData());
+        return;
       }
-      return [block.id, await refresh(block, previous, config)] as const;
+      if (previous?.fetchedAt) {
+        runInBackground(await database(), refresh(lead, previous, config, ids));
+        keep(previous);
+        return;
+      }
+      const data = await refresh(lead, previous, config, ids);
+      for (const id of ids) results.push([id, data] as const);
     }),
   );
 
