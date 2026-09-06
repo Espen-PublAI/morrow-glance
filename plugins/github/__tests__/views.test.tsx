@@ -214,7 +214,7 @@ describe('the repository views, one thing each', () => {
     expect(screen.getByText('63')).toBeTruthy();
   });
 
-  it('draws a bar per person, scaled against the busiest shown', () => {
+  it('sets the figures in named, aligned columns', () => {
     const { container } = show(
       'people',
       stored({
@@ -223,18 +223,36 @@ describe('the repository views, one thing each', () => {
           people: [
             { login: 'ada', commits: 200, added: 1000, removed: 100 },
             { login: 'sam', commits: 50, added: 400, removed: 20 },
-            { login: 'kim', commits: 0, added: 0, removed: 0 },
           ],
         },
       }),
       repoSettings,
     );
-    const bars = [...container.querySelectorAll('.github-bar i')].map(
-      (bar) => (bar as HTMLElement).style.width,
+    // Numbers rather than bars, each in its own column under a heading.
+    expect(container.querySelector('.github-bar')).toBeNull();
+    const head = [...container.querySelectorAll('.is-head span')].map(
+      (cell) => cell.textContent,
     );
-    // The busiest fills the bar and the rest are relative to it, which is what
-    // makes the comparison readable from across a room.
-    expect(bars).toEqual(['100%', '25%', '0%']);
+    expect(head).toEqual(['', 'Commits', 'Added', 'Removed']);
+    expect(screen.getByText('+1,000')).toBeTruthy();
+    expect(screen.getByText('\u2212100')).toBeTruthy();
+  });
+
+  it('leaves the lines columns out entirely when there are no lines', () => {
+    const { container } = show(
+      'people',
+      stored({
+        commitActivity: {
+          ...full,
+          people: [{ login: 'ada', commits: 200 }],
+        },
+      }),
+      repoSettings,
+    );
+    // No empty columns and no heading promising figures that never arrived.
+    expect(container.querySelector('.is-head')).toBeNull();
+    expect(container.querySelector('.github-added')).toBeNull();
+    expect(screen.getByText('200')).toBeTruthy();
   });
 
   it('shows the people alone, one per row', () => {

@@ -99,24 +99,23 @@
 }
 
 /*
- * People: a name, a bar for comparison, then the figures in aligned columns.
- * The bar is what makes a board readable from across a room; the numbers are
- * for when someone walks up to it.
+ * People: a name and its figures in aligned columns. Numbers rather than bars,
+ * set tabular so the digits line up down the column and can be compared by eye.
  */
 .github-people {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
   align-content: center;
-  gap: clamp(4px, 2.6cqmin, 28px);
+  gap: clamp(3px, 2.2cqmin, 24px);
   overflow: hidden;
 }
 
 .github-people li {
   display: grid;
-  grid-template-columns: minmax(0, 13em) minmax(2em, 1fr) auto auto;
-  align-items: center;
-  gap: clamp(6px, 3cqmin, 32px);
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  align-items: baseline;
+  gap: clamp(8px, 4cqmin, 44px);
   font-size: clamp(11px, min(7.5cqmin, 4cqi), 64px);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -128,39 +127,29 @@
   text-overflow: ellipsis;
 }
 
-/* One bar per person, scaled against the busiest. */
-.github-bar {
-  display: block;
-  height: 0.34em;
-  background: color-mix(in srgb, var(--ink) 14%, transparent);
-}
-
-.github-bar i {
-  display: block;
-  height: 100%;
-  background: var(--ink);
-  opacity: 0.85;
-}
-
-.github-count {
-  min-width: 2.6ch;
-  text-align: right;
-}
-
-/* Lines, quieter and in their own aligned columns so they cannot bunch. */
-.github-lines {
-  display: grid;
-  grid-template-columns: 5.2ch 5.2ch;
-  gap: 0.6ch;
-  font-size: 0.66em;
+/* The column names, in the same quiet uppercase as every other label. */
+.github-people .is-head {
   color: var(--faint);
+  font-size: var(--type-label);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
 }
 
-.github-lines b,
-.github-lines em {
-  font-weight: var(--weight-regular);
-  font-style: normal;
+.github-people .is-head span {
   text-align: right;
+}
+
+.github-count,
+.github-added,
+.github-removed {
+  text-align: right;
+  min-width: 4.5ch;
+}
+
+.github-added,
+.github-removed {
+  color: var(--faint);
 }
 
 /* Activity: one sentence per row, sized so eight rows fill the block. */

@@ -446,8 +446,8 @@ function PeopleView(props: PluginViewProps) {
   }
   const days = activity?.peopleDays ?? 0;
   const shown = byline.slice(0, 8);
-  // Bars are scaled against the busiest person shown, not an absolute figure.
-  const busiest = Math.max(1, ...shown.map((entry) => entry.commits));
+  /** Only give the lines columns when there are lines to put in them. */
+  const showLines = shown.some((entry) => entry.added !== undefined);
   return (
     <Frame
       label={label}
@@ -458,27 +458,33 @@ function PeopleView(props: PluginViewProps) {
       }
     >
       <ol className="github-people">
+        {showLines && (
+          // Name the columns once, so the figures need no explaining.
+          <li className="is-head" aria-hidden="true">
+            <span />
+            <span>Commits</span>
+            <span>Added</span>
+            <span>Removed</span>
+          </li>
+        )}
         {shown.map((entry) => (
           <li key={entry.name}>
             <strong>{entry.name}</strong>
-            {/* A bar carries the comparison across a room; the numbers are for
-                someone standing at the board. */}
-            <span className="github-bar" aria-hidden="true">
-              <i
-                style={{
-                  width: `${Math.round((entry.commits / busiest) * 100)}%`,
-                }}
-              />
-            </span>
             <span className="github-count">{compactNumber(entry.commits)}</span>
-            <span className="github-lines">
-              {entry.added !== undefined && (
-                <>
-                  <b>+{compactNumber(entry.added)}</b>
-                  <em>&minus;{compactNumber(entry.removed ?? 0)}</em>
-                </>
-              )}
-            </span>
+            {showLines && (
+              <>
+                <span className="github-added">
+                  {entry.added === undefined
+                    ? ''
+                    : `+${compactNumber(entry.added)}`}
+                </span>
+                <span className="github-removed">
+                  {entry.removed === undefined
+                    ? ''
+                    : `\u2212${compactNumber(entry.removed)}`}
+                </span>
+              </>
+            )}
           </li>
         ))}
       </ol>
