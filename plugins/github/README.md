@@ -99,9 +99,14 @@ whose statistics GitHub has not finished computing.
 
 Commit activity and the contributor list are cached statistics. The first
 request for a repository is answered with `202 Accepted` and an empty body
-while GitHub works them out in the background. The plugin retries once, then
-reports that they are on the way and picks them up on the next poll rather
-than blocking a fetch.
+while GitHub works them out in the background, and for some repositories it
+never finishes: they answer `202` for ever.
+
+So the plugin retries a couple of times and then counts the commits itself,
+from the commit list, over the last sixteen weeks. That always works, and it
+is the window the graph shows for a young repository anyway. A repository with
+no commits reports zero rather than looking like one that is still being
+computed.
 
 The two arrive independently, so a block may show the contributors before the
 graph, or the other way round; it shows whichever has arrived. A brand-new

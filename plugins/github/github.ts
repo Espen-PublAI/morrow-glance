@@ -535,6 +535,9 @@ async function fetchRepo(
  * One retry covers the common case; beyond that the next poll will get it,
  * five minutes being sooner than it is worth blocking a fetch for.
  */
+/** Raised when GitHub never finishes computing a repository's statistics. */
+class StatsPendingError extends Error {}
+
 /** How long to wait between attempts while GitHub computes statistics. */
 const STATS_BACKOFF_MS = [1200, 2500] as const;
 
@@ -554,7 +557,7 @@ async function requestStats(
         await new Promise((resolve) => setTimeout(resolve, wait));
         continue;
       }
-      throw new Error(
+      throw new StatsPendingError(
         'GitHub is still working out this repository’s statistics; they appear on the next refresh.',
       );
     }
@@ -570,13 +573,17 @@ async function fetchCommitActivity(
   token: string | undefined,
   now: Date,
 ): Promise<CommitActivity> {
-  return parseCommitActivity(
-    await requestStats(
+  let raw: unknown;
+  try {
+    raw = await requestStats(
       `${API}/repos/${owner}/${name}/stats/commit_activity`,
       token,
-    ),
-    now,
-  );
+    );
+  } catch {
+    // See fetchCommitsAsWeeks: some repositories never get their statistics.
+    raw = await fetchCommitsAsWeeks({ owner, name }, token, now);
+  }
+  return parseCommitActivity(raw, now);
 }
 
 /**
@@ -587,6 +594,74 @@ async function fetchViewer(token: string): Promise<string | null> {
   const response = await request(`${API}/user`, token);
   if (!response.ok) return null;
   return str(rec(await readJson(response)).login);
+}
+
+/**
+ * GitHub computes the statistics endpoints in the background and, for some
+ * repositories, never finishes: they answer 202 for ever. Counting commits
+ * directly always works, so it is the fallback. It is bounded to a recent
+ * window and a few pages, which is what the graph shows anyway.
+ */
+const FALLBACK_DAYS = 112;
+const FALLBACK_PAGES = 3;
+const FALLBACK_PER_PAGE = 100;
+
+/** The Unix timestamp of the Sunday on or before a moment, at UTC midnight. */
+function weekStart(time: number): number {
+  const date = new Date(time);
+  const sunday = Date.UTC(
+    date.getUTCFullYear(),
+    date.getUTCMonth(),
+    date.getUTCDate() - date.getUTCDay(),
+  );
+  return Math.floor(sunday / 1000);
+}
+
+/**
+ * Commit dates for one repository, bucketed into the weekly shape the
+ * statistics endpoint would have returned.
+ */
+async function fetchCommitsAsWeeks(
+  { owner, name }: RepoRef,
+  token: string | undefined,
+  now: Date,
+): Promise<unknown[]> {
+  const since = new Date(now.getTime() - FALLBACK_DAYS * 86_400_000);
+  const counts = new Map<string, number>();
+  for (let page = 1; page <= FALLBACK_PAGES; page += 1) {
+    const response = await request(
+      `${API}/repos/${owner}/${name}/commits?since=${since.toISOString()}&per_page=${FALLBACK_PER_PAGE}&page=${page}`,
+      token,
+    );
+    // An empty repository answers 409; that is no commits, not a failure.
+    if (response.status === 409) break;
+    if (!response.ok) throw new Error(`GitHub answered ${response.status}.`);
+    const body = await readJson(response);
+    if (!Array.isArray(body) || body.length === 0) break;
+    for (const raw of body) {
+      const commit = rec(rec(raw).commit);
+      const date =
+        str(rec(commit.author).date) ?? str(rec(commit.committer).date);
+      if (!date) continue;
+      const day = date.slice(0, 10);
+      counts.set(day, (counts.get(day) ?? 0) + 1);
+    }
+    if (body.length < FALLBACK_PER_PAGE) break;
+  }
+
+  const weeks: Array<{ week: number; days: number[] }> = [];
+  const firstWeek = weekStart(since.getTime());
+  const lastWeek = weekStart(now.getTime());
+  for (let week = firstWeek; week <= lastWeek; week += 7 * 86_400) {
+    const days = Array.from({ length: 7 }, (_, index) => {
+      const day = new Date((week + index * 86_400) * 1000)
+        .toISOString()
+        .slice(0, 10);
+      return counts.get(day) ?? 0;
+    });
+    weeks.push({ week, days });
+  }
+  return weeks;
 }
 
 /** How many of an owner's repositories to aggregate, busiest pushed first. */
@@ -731,8 +806,21 @@ async function fetchOwnerActivity(
         // A repository with no commits reports nothing, which is not a failure.
         return { ref, weeks: Array.isArray(raw) ? raw : [], reason: null };
       } catch (cause) {
-        // One repository failing must not lose the others.
-        return { ref, weeks: null, reason: messageOf(cause) };
+        // GitHub may never finish computing a repository's statistics. Counting
+        // its commits gives the same picture over a shorter window.
+        try {
+          return {
+            ref,
+            weeks: await fetchCommitsAsWeeks(ref, token, now),
+            reason: null,
+          };
+        } catch (fallback) {
+          // Which error helps depends on the first one. A refusal or a missing
+          // repository is the actionable fact; merely waiting on GitHub is not,
+          // so there the fallback's failure is what the reader needs.
+          const useful = cause instanceof StatsPendingError ? fallback : cause;
+          return { ref, weeks: null, reason: messageOf(useful) };
+        }
       }
     }),
   );

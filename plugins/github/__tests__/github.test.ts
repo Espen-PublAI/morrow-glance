@@ -122,8 +122,11 @@ describe('what the repository field accepts', () => {
           { full_name: 'Aptide-ai/web' },
         ]);
       }
+      // Statistics never materialise and the commit list is refused too.
       if (url.includes('/api/stats/'))
         return new Response('{}', { status: 202 });
+      if (url.includes('/api/commits'))
+        return new Response('{}', { status: 500 });
       return Response.json([
         { week: 1_788_048_000, days: [0, 2, 0, 0, 0, 0, 0] },
       ]);
@@ -457,12 +460,14 @@ describe('what the repository field accepts', () => {
       if (url.includes('/events')) return Response.json(eventsFixture);
       if (url.includes('/graphql')) return Response.json(contributionsFixture);
       if (url.includes('/a/stats/')) return new Response('{}', { status: 403 });
+      if (url.includes('/commits')) return new Response('{}', { status: 500 });
       return new Response('{}', { status: 202 });
     });
     const data = await fetchGitHub({}, withToken);
     const warning = data.warnings.join(' ');
+    // Two repositories, two different failures, both reported.
     expect(warning).toMatch(/403/);
-    expect(warning).toMatch(/still working out/);
+    expect(warning).toMatch(/500/);
     vi.unstubAllGlobals();
   }, 20_000);
 
@@ -505,23 +510,71 @@ describe('statistics that GitHub computes lazily', () => {
     vi.unstubAllGlobals();
   }, 10_000);
 
-  it('explains a persistent 202 without losing the other parts', async () => {
+  it('counts commits itself when the statistics never appear', async () => {
+    const now = new Date('2026-09-04T12:00:00Z');
+    vi.stubGlobal('fetch', async (url: string) => {
+      // GitHub never finishes computing this repository's statistics.
+      if (url.includes('/stats/commit_activity')) {
+        return new Response('{}', { status: 202 });
+      }
+      if (url.includes('/commits')) {
+        return Response.json([
+          { commit: { author: { date: '2026-09-03T09:00:00Z' } } },
+          { commit: { author: { date: '2026-09-03T17:00:00Z' } } },
+          { commit: { author: { date: '2026-08-28T10:00:00Z' } } },
+        ]);
+      }
+      if (url.includes('/contributors'))
+        return Response.json(contributorsFixture);
+      return Response.json(repoFixture);
+    });
+    const data = await fetchGitHub(
+      { repo: 'github/docs' },
+      { ...context, now },
+    );
+    // The graph is built from the commits themselves.
+    expect(data.commitActivity?.total).toBe(3);
+    expect(data.commitActivity?.last7).toBe(2);
+    expect(data.warnings).toEqual([]);
+    expect(data.repo?.fullName).toBe('github/docs');
+    vi.unstubAllGlobals();
+  }, 20_000);
+
+  it('treats an empty repository\u2019s 409 as no commits', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
       if (url.includes('/stats/commit_activity')) {
         return new Response('{}', { status: 202 });
       }
+      if (url.includes('/commits')) return new Response('{}', { status: 409 });
+      if (url.includes('/contributors'))
+        return Response.json(contributorsFixture);
+      return Response.json(repoFixture);
+    });
+    const data = await fetchGitHub({ repo: 'github/docs' }, context);
+    expect(data.commitActivity?.total).toBe(0);
+    expect(data.warnings).toEqual([]);
+    vi.unstubAllGlobals();
+  }, 20_000);
+
+  it('reports the failure when statistics and commits both fail', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/stats/commit_activity')) {
+        return new Response('{}', { status: 202 });
+      }
+      if (url.includes('/commits')) return new Response('{}', { status: 500 });
       if (url.includes('/contributors'))
         return Response.json(contributorsFixture);
       return Response.json(repoFixture);
     });
     const data = await fetchGitHub({ repo: 'github/docs' }, context);
     expect(data.commitActivity).toBeNull();
-    expect(data.warnings.join(' ')).toMatch(/still working out/);
+    // The fallback's failure, not the statistics' patience, is what blocked it.
+    expect(data.warnings.join(' ')).toMatch(/GitHub answered 500/);
     // The stars and the contributors came back regardless.
     expect(data.repo?.fullName).toBe('github/docs');
     expect(data.topContributors?.top.length).toBeGreaterThan(0);
     vi.unstubAllGlobals();
-  }, 10_000);
+  }, 20_000);
 });
 
 describe('repository', () => {
