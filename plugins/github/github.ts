@@ -1,4 +1,4 @@
-import { readStringSetting } from '@/lib/morrow/settings';
+import { readNumberSetting, readStringSetting } from '@/lib/morrow/settings';
 import { readBodyWithLimit } from '@/lib/morrow/sources';
 import type { PluginServerContext, PluginSettings } from '@/lib/morrow/types';
 
@@ -683,8 +683,20 @@ async function fetchViewer(token: string): Promise<string | null> {
 const FALLBACK_DAYS = 112;
 const FALLBACK_PAGES = 6;
 const FALLBACK_PER_PAGE = 100;
-/** The window for "who has been committing lately", in days. */
-const PEOPLE_DAYS = 28;
+/** Default window for "who has been committing lately". Set per block. */
+export const DEFAULT_WINDOW_DAYS = 28;
+export const MIN_WINDOW_DAYS = 1;
+export const MAX_WINDOW_DAYS = 365;
+
+/** How far back a block counts people and lines, from its own settings. */
+export function windowDays(settings: PluginSettings): number {
+  const asked = readNumberSetting(settings, 'windowDays', DEFAULT_WINDOW_DAYS);
+  if (!Number.isFinite(asked)) return DEFAULT_WINDOW_DAYS;
+  return Math.min(
+    MAX_WINDOW_DAYS,
+    Math.max(MIN_WINDOW_DAYS, Math.round(asked)),
+  );
+}
 
 /** The Unix timestamp of the Sunday on or before a moment, at UTC midnight. */
 function weekStart(time: number): number {
@@ -719,9 +731,12 @@ async function readCommits(
   { owner, name }: RepoRef,
   token: string | undefined,
   now: Date,
+  days = DEFAULT_WINDOW_DAYS,
 ): Promise<RepoActivity> {
-  const since = new Date(now.getTime() - FALLBACK_DAYS * 86_400_000);
-  const peopleSince = new Date(now.getTime() - PEOPLE_DAYS * 86_400_000)
+  const since = new Date(
+    now.getTime() - Math.max(FALLBACK_DAYS, days) * 86_400_000,
+  );
+  const peopleSince = new Date(now.getTime() - days * 86_400_000)
     .toISOString()
     .slice(0, 10);
   const counts = new Map<string, number>();
@@ -952,6 +967,7 @@ async function fetchOwnerActivity(
   owner: string | null,
   token: string | undefined,
   now: Date,
+  days: number,
   warnings: string[] = [],
 ): Promise<CommitActivity> {
   const repos =
@@ -970,7 +986,7 @@ async function fetchOwnerActivity(
       // Read the commits once. They give the people either way, and the weekly
       // shape too when GitHub will not compute its own. Keep the failure: when
       // the statistics were merely pending, this is the actionable error.
-      const commits = await readCommits(ref, token, now).then(
+      const commits = await readCommits(ref, token, now, days).then(
         (value) => ({ value, error: null as unknown }),
         (error: unknown) => ({ value: null, error }),
       );
@@ -1041,7 +1057,7 @@ async function fetchOwnerActivity(
     }
   }
   // Lines moved, from the weekly statistics, for the same window.
-  const peopleSince = new Date(now.getTime() - PEOPLE_DAYS * 86_400_000);
+  const peopleSince = new Date(now.getTime() - days * 86_400_000);
   const lineTotals = new Map<string, AuthorLines>();
   const lineFailures: string[] = [];
   await Promise.all(
@@ -1139,7 +1155,7 @@ async function fetchOwnerActivity(
     pending: results.length - usable.length,
     scope,
     people,
-    peopleDays: PEOPLE_DAYS,
+    peopleDays: days,
     // Only a year if every repository could give one.
     wholeYear: usable.every((result) => result.wholeYear),
     allTime,
@@ -1376,6 +1392,7 @@ export async function fetchGitHub(
           owner,
           token,
           context.now,
+          windowDays(settings),
           data.warnings,
         );
       }),

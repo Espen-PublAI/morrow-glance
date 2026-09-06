@@ -511,6 +511,12 @@ export const plugin = definePlugin({
         placeholder: 'Optional \u00b7 a GitHub username',
       },
       {
+        id: 'windowDays',
+        label: 'Count people and lines over',
+        type: 'text',
+        placeholder: 'Days \u00b7 28 by default, 1 to 365',
+      },
+      {
         id: 'label',
         label: 'Label',
         type: 'text',

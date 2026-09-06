@@ -88,6 +88,8 @@ narrow that down.
 - **Personal access token**, stored as a per-block secret and never sent to a
   Player. Alternatively set `MORROW_GITHUB_TOKEN` on Morrow Server for every
   block at once.
+- **Count people and lines over**, in days. 28 unless you say otherwise, and
+  anything from 1 to 365. A standup board wants 7; a quarterly review wants 90.
 - **Label**, which defaults to the username or repository.
 
 ## Why a token

@@ -12,6 +12,7 @@ import {
   parseContributors,
   parseOwner,
   foldAuthorStats,
+  windowDays,
   describeTokenProblem,
   visibleWeeks,
   isGitHubData,
@@ -931,6 +932,67 @@ describe('what the repository field accepts', () => {
     expect(calls.some((url) => url.includes('/stats/contributors'))).toBe(
       false,
     );
+    vi.unstubAllGlobals();
+  }, 20_000);
+
+  it('takes the counting window from the block, within sane bounds', () => {
+    // Nothing set: the default.
+    expect(windowDays({})).toBe(28);
+    // A standup board wants a week; a quarterly review wants a quarter.
+    expect(windowDays({ windowDays: '7' })).toBe(7);
+    expect(windowDays({ windowDays: 90 })).toBe(90);
+    // Clamped rather than trusted, and nonsense falls back.
+    expect(windowDays({ windowDays: '0' })).toBe(1);
+    expect(windowDays({ windowDays: '99999' })).toBe(365);
+    expect(windowDays({ windowDays: 'soon' })).toBe(28);
+  });
+
+  it('counts over the window the block asked for', async () => {
+    const now = new Date('2026-09-06T12:00:00Z');
+    let askedSince = '';
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      }
+      if (url.endsWith('/graphql')) {
+        const body = typeof init?.body === 'string' ? init.body : '';
+        const match = /"since":"([^"]+)"/.exec(body);
+        if (match?.[1]) askedSince = match[1];
+        return Response.json({
+          data: {
+            repository: {
+              defaultBranchRef: {
+                target: {
+                  history: {
+                    pageInfo: { hasNextPage: false, endCursor: null },
+                    nodes: [
+                      {
+                        additions: 10,
+                        deletions: 1,
+                        author: { user: { login: 'ada' } },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      return Response.json([]);
+    });
+    const data = await fetchGitHub(
+      { repo: 'Aptide-ai', windowDays: '7' },
+      { ...withToken, now },
+    );
+    expect(data.commitActivity?.peopleDays).toBe(7);
+    // Seven days back from the given moment, not the default twenty-eight.
+    expect(askedSince).toBe('2026-08-30T12:00:00.000Z');
     vi.unstubAllGlobals();
   }, 20_000);
 
