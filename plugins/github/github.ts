@@ -77,6 +77,20 @@ export interface CommitActivity {
   pending: number;
   /** What this covers: one repository, an owner, or everything a token reads. */
   scope: string;
+  /**
+   * Who has been committing lately, busiest first, counted across every
+   * repository covered. Recent rather than all-time, because the question a
+   * wall answers is how the team is doing now.
+   */
+  people: TopContributor[];
+  /** The window `people` covers, in days. */
+  peopleDays: number;
+  /**
+   * Whether the figures really cover a year. False when they were counted from
+   * the commit list and it ran out of pages, in which case they cover only
+   * `from` to `to` and must not be labelled as a year.
+   */
+  wholeYear: boolean;
 }
 
 export interface TopContributor {
@@ -310,6 +324,9 @@ export function parseCommitActivity(
     repos: [],
     pending: 0,
     scope: '',
+    people: [],
+    peopleDays: 0,
+    wholeYear: true,
   };
 }
 
@@ -574,6 +591,7 @@ async function fetchCommitActivity(
   now: Date,
 ): Promise<CommitActivity> {
   let raw: unknown;
+  let wholeYear = true;
   try {
     raw = await requestStats(
       `${API}/repos/${owner}/${name}/stats/commit_activity`,
@@ -582,8 +600,9 @@ async function fetchCommitActivity(
   } catch {
     // See fetchCommitsAsWeeks: some repositories never get their statistics.
     raw = await fetchCommitsAsWeeks({ owner, name }, token, now);
+    wholeYear = false;
   }
-  return parseCommitActivity(raw, now);
+  return { ...parseCommitActivity(raw, now), wholeYear };
 }
 
 /**
@@ -603,8 +622,10 @@ async function fetchViewer(token: string): Promise<string | null> {
  * window and a few pages, which is what the graph shows anyway.
  */
 const FALLBACK_DAYS = 112;
-const FALLBACK_PAGES = 3;
+const FALLBACK_PAGES = 6;
 const FALLBACK_PER_PAGE = 100;
+/** The window for "who has been committing lately", in days. */
+const PEOPLE_DAYS = 28;
 
 /** The Unix timestamp of the Sunday on or before a moment, at UTC midnight. */
 function weekStart(time: number): number {
@@ -625,9 +646,12 @@ async function fetchCommitsAsWeeks(
   { owner, name }: RepoRef,
   token: string | undefined,
   now: Date,
+  authors?: Map<string, number>,
+  authorSince?: string,
 ): Promise<unknown[]> {
   const since = new Date(now.getTime() - FALLBACK_DAYS * 86_400_000);
   const counts = new Map<string, number>();
+  let truncated = false;
   for (let page = 1; page <= FALLBACK_PAGES; page += 1) {
     const response = await request(
       `${API}/repos/${owner}/${name}/commits?since=${since.toISOString()}&per_page=${FALLBACK_PER_PAGE}&page=${page}`,
@@ -645,12 +669,27 @@ async function fetchCommitsAsWeeks(
       if (!date) continue;
       const day = date.slice(0, 10);
       counts.set(day, (counts.get(day) ?? 0) + 1);
+      if (authors && (!authorSince || day > authorSince)) {
+        // Prefer the GitHub account; fall back to the name on the commit so a
+        // contributor without a linked account still shows up.
+        const login =
+          str(rec(rec(raw).author).login) ?? str(rec(commit.author).name);
+        if (login) authors.set(login, (authors.get(login) ?? 0) + 1);
+      }
     }
     if (body.length < FALLBACK_PER_PAGE) break;
+    // A full last page means there is more than this is willing to fetch.
+    if (page === FALLBACK_PAGES) truncated = true;
   }
 
   const weeks: Array<{ week: number; days: number[] }> = [];
-  const firstWeek = weekStart(since.getTime());
+  // If the pages ran out, the oldest commit seen is as far back as this can
+  // honestly speak for. Claiming the whole window would invent empty weeks and
+  // let a truncated count be labelled as a year.
+  const oldest = [...counts.keys()].sort()[0];
+  const start =
+    truncated && oldest ? Date.parse(`${oldest}T00:00:00Z`) : since.getTime();
+  const firstWeek = weekStart(start);
   const lastWeek = weekStart(now.getTime());
   for (let week = firstWeek; week <= lastWeek; week += 7 * 86_400) {
     const days = Array.from({ length: 7 }, (_, index) => {
@@ -804,7 +843,12 @@ async function fetchOwnerActivity(
           token,
         );
         // A repository with no commits reports nothing, which is not a failure.
-        return { ref, weeks: Array.isArray(raw) ? raw : [], reason: null };
+        return {
+          ref,
+          weeks: Array.isArray(raw) ? raw : [],
+          reason: null,
+          wholeYear: true,
+        };
       } catch (cause) {
         // GitHub may never finish computing a repository's statistics. Counting
         // its commits gives the same picture over a shorter window.
@@ -813,20 +857,32 @@ async function fetchOwnerActivity(
             ref,
             weeks: await fetchCommitsAsWeeks(ref, token, now),
             reason: null,
+            wholeYear: false,
           };
         } catch (fallback) {
           // Which error helps depends on the first one. A refusal or a missing
           // repository is the actionable fact; merely waiting on GitHub is not,
           // so there the fallback's failure is what the reader needs.
           const useful = cause instanceof StatsPendingError ? fallback : cause;
-          return { ref, weeks: null, reason: messageOf(useful) };
+          return {
+            ref,
+            weeks: null,
+            reason: messageOf(useful),
+            wholeYear: true,
+          };
         }
       }
     }),
   );
   const usable = results.filter(
-    (result): result is { ref: RepoRef; weeks: unknown[]; reason: null } =>
-      result.weeks !== null,
+    (
+      result,
+    ): result is {
+      ref: RepoRef;
+      weeks: unknown[];
+      reason: null;
+      wholeYear: boolean;
+    } => result.weeks !== null,
   );
   if (usable.length === 0) {
     // Say what actually went wrong, rather than assuming it was the same thing
@@ -836,6 +892,26 @@ async function fetchOwnerActivity(
       reasons.filter(Boolean).join(' ') || 'GitHub returned no statistics.',
     );
   }
+
+  // Who has been committing lately. The commit list is the only source that
+  // gives recent per-person counts; /contributors is all-time and, on a busy
+  // repository, megabytes of weekly history for a handful of names.
+  const authors = new Map<string, number>();
+  const peopleSince = new Date(now.getTime() - PEOPLE_DAYS * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  await Promise.all(
+    usable.map(async (result) => {
+      try {
+        await fetchCommitsAsWeeks(result.ref, token, now, authors, peopleSince);
+      } catch {
+        // A repository that will not list its commits simply contributes none.
+      }
+    }),
+  );
+  const people = [...authors.entries()]
+    .map(([login, commits]) => ({ login, commits }))
+    .sort((a, b) => b.commits - a.commits);
 
   const weeks = mergeCommitActivity(usable.map((result) => result.weeks));
   // Every repository readable but none with commits: a real answer, not a
@@ -853,6 +929,9 @@ async function fetchOwnerActivity(
           repos: [],
           pending: 0,
           scope: '',
+          people: [],
+          peopleDays: 0,
+          wholeYear: true,
         };
   const breakdown = usable
     .map((result) => ({
@@ -868,6 +947,10 @@ async function fetchOwnerActivity(
     repos: breakdown,
     pending: results.length - usable.length,
     scope,
+    people,
+    peopleDays: PEOPLE_DAYS,
+    // Only a year if every repository could give one.
+    wholeYear: usable.every((result) => result.wholeYear),
   };
 }
 

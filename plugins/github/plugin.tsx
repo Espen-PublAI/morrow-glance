@@ -1,4 +1,5 @@
 import { GitBranch } from 'lucide-react';
+import type { CSSProperties } from 'react';
 
 import { readStringSetting } from '@/lib/morrow/settings';
 import { definePlugin, type PluginViewProps } from '@/lib/morrow/types';
@@ -20,9 +21,6 @@ import './plugin.css';
  */
 
 const EVENT_ROWS = 8;
-/** Heatmap geometry in viewBox units. */
-const CELL = 10;
-const RADII = [0.9, 2.2, 2.9, 3.5, 4.2] as const;
 
 function readLabels({ settings }: PluginViewProps) {
   const user = readStringSetting(settings, 'user').replace(/^@/, '');
@@ -38,32 +36,22 @@ function readLabels({ settings }: PluginViewProps) {
  */
 function DotGrid({ weeks }: { weeks: number[][] }) {
   const max = Math.max(0, ...weeks.flat());
-  const width = weeks.length * CELL;
-  const height = 7 * CELL;
+  // A CSS grid rather than an SVG: the cells take their size from the block, so
+  // the dots fill whatever shape the block is instead of sitting in a band of
+  // empty space inside a box of the wrong proportions.
+  const style = { '--weeks': weeks.length } as CSSProperties;
   return (
-    <div className="github-heatmap">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        preserveAspectRatio="xMinYMid meet"
-        aria-hidden="true"
-        focusable="false"
-      >
-        {weeks.map((week, w) =>
-          week.map((count, d) => {
-            if (count < 0) return null;
-            const level = contributionLevel(count, max);
-            return (
-              <circle
-                key={`${w}-${d}`}
-                className={`is-l${level}`}
-                cx={w * CELL + CELL / 2}
-                cy={d * CELL + CELL / 2}
-                r={RADII[level]}
-              />
-            );
-          }),
-        )}
-      </svg>
+    <div className="github-heatmap" style={style} aria-hidden="true">
+      {weeks.map((week, w) =>
+        week.map((count, d) => (
+          <span
+            key={`${w}-${d}`}
+            className={
+              count < 0 ? 'is-blank' : `is-l${contributionLevel(count, max)}`
+            }
+          />
+        )),
+      )}
     </div>
   );
 }
@@ -251,6 +239,17 @@ function RepoView(props: PluginViewProps) {
   );
 }
 
+/** How far back the figures actually reach, when it is not a full year. */
+function spanLabel(activity: { from: string; to: string }): string {
+  const from = Date.parse(`${activity.from}T00:00:00Z`);
+  const to = Date.parse(`${activity.to}T00:00:00Z`);
+  if (!Number.isFinite(from) || !Number.isFinite(to)) return 'counted so far';
+  const weeks = Math.max(1, Math.round((to - from) / (7 * 86_400_000)));
+  return weeks >= 8
+    ? `last ${Math.round(weeks / 4.345)} months`
+    : `last ${weeks} ${weeks === 1 ? 'week' : 'weeks'}`;
+}
+
 function CommitsView(props: PluginViewProps) {
   const { repo: repoSetting, label: custom } = readLabels(props);
   const scope =
@@ -280,12 +279,34 @@ function CommitsView(props: PluginViewProps) {
 
   const weeks = activity ? visibleWeeks(activity.weeks) : [];
   const repoCount = activity?.repos.length ?? 0;
+  const developers = activity?.people ?? [];
+  /** People if we know them, otherwise repositories, otherwise contributors. */
+  const byline =
+    developers.length > 0
+      ? developers.map((person) => ({
+          name: person.login,
+          commits: person.commits,
+        }))
+      : activity && activity.repos.length > 0
+        ? activity.repos.map((repo) => ({
+            name: repo.name,
+            commits: repo.commits,
+          }))
+        : (people?.top ?? []).map((person) => ({
+            name: person.login,
+            commits: person.commits,
+          }));
   const meta = [
-    repoCount > 0
+    developers.length > 0
+      ? `${developers.length} ${developers.length === 1 ? 'person' : 'people'} in ${activity?.peopleDays ?? 28} days`
+      : repoCount > 0
+        ? `${repoCount} ${repoCount === 1 ? 'repository' : 'repositories'}`
+        : people?.total
+          ? `${compactNumber(people.total)} contributors`
+          : '',
+    developers.length > 0 && repoCount > 0
       ? `${repoCount} ${repoCount === 1 ? 'repository' : 'repositories'}`
-      : people?.total
-        ? `${compactNumber(people.total)} contributors`
-        : '',
+      : '',
     activity && activity.pending > 0
       ? `${activity.pending} still being computed`
       : '',
@@ -313,32 +334,25 @@ function CommitsView(props: PluginViewProps) {
           </li>
           <li>
             <strong>{compactNumber(activity.total)}</strong>
-            <small>last year</small>
+            {/* Only call it a year when the data really covers one. */}
+            <small>
+              {activity.wholeYear ? 'last year' : spanLabel(activity)}
+            </small>
           </li>
         </ol>
       )}
       {weeks.length > 0 && <DotGrid weeks={weeks} />}
-      {activity && activity.repos.length > 0 ? (
+      {/* Who has been committing answers "how is the team doing" better than
+          which repository they committed to. Repositories are the fallback. */}
+      {byline.length > 0 && (
         <ol className="github-top">
-          {activity.repos.slice(0, 4).map((repo) => (
-            <li key={repo.name}>
-              <strong>{repo.name}</strong>
-              <span>{compactNumber(repo.commits)}</span>
+          {byline.slice(0, 5).map((entry) => (
+            <li key={entry.name}>
+              <strong>{entry.name}</strong>
+              <span>{compactNumber(entry.commits)}</span>
             </li>
           ))}
         </ol>
-      ) : (
-        people &&
-        people.top.length > 0 && (
-          <ol className="github-top">
-            {people.top.slice(0, 4).map((person) => (
-              <li key={person.login}>
-                <strong>{person.login}</strong>
-                <span>{compactNumber(person.commits)}</span>
-              </li>
-            ))}
-          </ol>
-        )
       )}
     </Frame>
   );

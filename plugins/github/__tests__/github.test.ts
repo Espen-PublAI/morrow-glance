@@ -471,6 +471,144 @@ describe('what the repository field accepts', () => {
     vi.unstubAllGlobals();
   }, 20_000);
 
+  it('counts recent commits per person across every repository', async () => {
+    const now = new Date('2026-09-06T12:00:00Z');
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([
+          { full_name: 'Aptide-ai/api' },
+          { full_name: 'Aptide-ai/web' },
+        ]);
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      if (url.includes('/api/commits')) {
+        return Response.json([
+          {
+            author: { login: 'espen' },
+            commit: { author: { date: '2026-09-05T09:00:00Z' } },
+          },
+          {
+            author: { login: 'ada' },
+            commit: { author: { date: '2026-09-04T09:00:00Z' } },
+          },
+          // Older than the people window, so it counts for neither person.
+          {
+            author: { login: 'ada' },
+            commit: { author: { date: '2026-06-01T09:00:00Z' } },
+          },
+        ]);
+      }
+      if (url.includes('/web/commits')) {
+        return Response.json([
+          {
+            author: { login: 'ada' },
+            commit: { author: { date: '2026-09-05T10:00:00Z' } },
+          },
+          {
+            author: { login: 'ada' },
+            commit: { author: { date: '2026-09-05T11:00:00Z' } },
+          },
+          // No linked account: fall back to the name on the commit.
+          {
+            commit: {
+              author: { date: '2026-09-05T12:00:00Z', name: 'Sam Fry' },
+            },
+          },
+        ]);
+      }
+      return Response.json([]);
+    });
+    const data = await fetchGitHub(
+      { repo: 'Aptide-ai' },
+      { ...withToken, now },
+    );
+    expect(data.commitActivity?.peopleDays).toBe(28);
+    // Summed across both repositories, busiest first.
+    expect(data.commitActivity?.people).toEqual([
+      { login: 'ada', commits: 3 },
+      { login: 'espen', commits: 1 },
+      { login: 'Sam Fry', commits: 1 },
+    ]);
+    vi.unstubAllGlobals();
+  }, 20_000);
+
+  it('still reports the graph when no commit list can be read', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([{ full_name: 'Aptide-ai/api' }]);
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [4, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      if (url.includes('/commits')) return new Response('{}', { status: 500 });
+      return Response.json([]);
+    });
+    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    expect(data.commitActivity?.total).toBe(4);
+    expect(data.commitActivity?.people).toEqual([]);
+    expect(data.warnings).toEqual([]);
+    vi.unstubAllGlobals();
+  }, 20_000);
+
+  it('does not call a truncated count a year', async () => {
+    const now = new Date('2026-09-06T12:00:00Z');
+    // Every page comes back full, so the commit list has more than it will read.
+    const page = Array.from({ length: 100 }, (_, index) => ({
+      author: { login: 'ada' },
+      commit: {
+        author: {
+          date: new Date(now.getTime() - index * 3_600_000).toISOString(),
+        },
+      },
+    }));
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return new Response('{}', { status: 202 });
+      }
+      if (url.includes('/commits')) return Response.json(page);
+      return Response.json([]);
+    });
+    const data = await fetchGitHub(
+      { repo: 'Aptide-ai' },
+      { ...withToken, now },
+    );
+    const activity = data.commitActivity;
+    // The figures are real but they do not reach back a year, and say so.
+    expect(activity?.wholeYear).toBe(false);
+    // Only the days actually seen are claimed, not a year of invented blanks.
+    const span =
+      (Date.parse(`${activity?.to}T00:00:00Z`) -
+        Date.parse(`${activity?.from}T00:00:00Z`)) /
+      86_400_000;
+    expect(span).toBeLessThan(40);
+    vi.unstubAllGlobals();
+  }, 30_000);
+
+  it('reports a real year when the statistics endpoint answers', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json(commitActivityFixture);
+      }
+      if (url.includes('/commits')) return Response.json([]);
+      return Response.json([]);
+    });
+    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    expect(data.commitActivity?.wholeYear).toBe(true);
+    vi.unstubAllGlobals();
+  }, 20_000);
+
   it('fails only when no field is usable', async () => {
     await expect(fetchGitHub({ repo: 'a/b/c' }, context)).rejects.toThrow(
       /not a repository as owner\/name/,

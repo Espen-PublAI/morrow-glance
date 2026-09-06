@@ -11,45 +11,52 @@
   font-size: var(--type-meta);
 }
 
-/* Contributions: the year as a grid of dots, the same language as the map. */
+/* Contributions: the year as a grid of dots, the same language as the map.
+   Laid out as a grid so the cells take their size from the block. Columns are
+   weeks and rows are weekdays, so it fills a wide block and a tall one alike,
+   and the dots stay round because each is a square inside its cell. */
 .github-heatmap {
-  /* A year is 53 columns by 7 rows, so the grid is about eight times wider
-     than it is tall. Growing into spare height would only strand it in an
-     empty band, so it takes the height its aspect actually needs. */
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-height: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 1fr);
+  grid-template-columns: repeat(var(--weeks), 1fr);
+  gap: clamp(1px, 0.4cqmin, 6px);
+  place-items: center;
 }
 
-.github-heatmap svg {
-  width: 100%;
+.github-heatmap span {
+  aspect-ratio: 1;
   height: 100%;
-  max-height: 100%;
-  display: block;
+  max-width: 100%;
+  border-radius: 50%;
+  background: var(--ink);
 }
 
-/* The figures above the grid carry the numbers; the grid carries the rhythm. */
-.github-plugin .github-figures {
-  margin-bottom: var(--space-gap);
+/* An empty day still reads as part of the grid; a busy one is solid. */
+.github-heatmap .is-blank {
+  opacity: 0;
 }
-
-.github-heatmap circle {
-  fill: var(--ink);
-}
-
 .github-heatmap .is-l0 {
-  opacity: 0.28;
+  opacity: 0.22;
+  transform: scale(0.28);
 }
 .github-heatmap .is-l1 {
-  opacity: 0.4;
+  opacity: 0.45;
+  transform: scale(0.62);
 }
 .github-heatmap .is-l2 {
-  opacity: 0.6;
+  opacity: 0.62;
+  transform: scale(0.76);
 }
 .github-heatmap .is-l3 {
   opacity: 0.8;
+  transform: scale(0.88);
 }
 .github-heatmap .is-l4 {
   opacity: 1;
+  transform: scale(1);
 }
 
 /* Activity: one sentence per row, sized so eight rows fill the block. */

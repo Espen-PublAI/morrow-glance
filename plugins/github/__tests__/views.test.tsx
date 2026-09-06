@@ -58,7 +58,9 @@ describe('contributions view', () => {
   it('draws one dot per day inside the range and none outside it', () => {
     const contributions = parseContributions(contributionsFixture);
     const { container } = show('heatmap', stored({ contributions }));
-    const dots = container.querySelectorAll('circle');
+    const dots = container.querySelectorAll(
+      '.github-heatmap span:not(.is-blank)',
+    );
     // 4 + 7 + 7 + 2 days carry data; the padding days are not drawn.
     expect(dots).toHaveLength(20);
     expect(screen.getByText('41 contributions in the last year')).toBeTruthy();
@@ -68,26 +70,32 @@ describe('contributions view', () => {
     const contributions = parseContributions(contributionsFixture);
     const { container } = show('heatmap', stored({ contributions }));
     const byLevel = (level: number) =>
-      container.querySelectorAll(`circle.is-l${level}`).length;
+      container.querySelectorAll(`.github-heatmap span.is-l${level}`).length;
     // Busiest day is 12. Counts: 0 ×12, 1–3 → l1 (2,1,3), 4–6 → l2 (5,4,6), 7–9 → l3 (8), 10–12 → l4 (12).
     expect(byLevel(0)).toBe(12);
     expect(byLevel(1)).toBe(3);
     expect(byLevel(2)).toBe(3);
     expect(byLevel(3)).toBe(1);
     expect(byLevel(4)).toBe(1);
-    const empty = container.querySelector('circle.is-l0');
-    const busiest = container.querySelector('circle.is-l4');
-    expect(Number(busiest?.getAttribute('r'))).toBeGreaterThan(
-      Number(empty?.getAttribute('r')),
-    );
+    // A busier day is a larger dot; the class carries the level.
+    expect(container.querySelector('.github-heatmap span.is-l4')).toBeTruthy();
+    expect(container.querySelector('.github-heatmap span.is-l0')).toBeTruthy();
   });
 
-  it('lays the grid out as columns of weeks', () => {
+  it('lays the grid out as one column per week', () => {
     const contributions = parseContributions(contributionsFixture);
     const { container } = show('heatmap', stored({ contributions }));
-    expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe(
-      '0 0 40 70',
+    const grid = container.querySelector('.github-heatmap');
+    // The grid takes its column count from the data and its size from the
+    // block, so it fills whatever shape the block happens to be.
+    expect(grid?.getAttribute('style')).toContain('--weeks: 4');
+    expect(container.querySelectorAll('.github-heatmap span')).toHaveLength(
+      4 * 7,
     );
+    // Days outside the range occupy their cell but are not drawn.
+    expect(
+      container.querySelectorAll('.github-heatmap span.is-blank'),
+    ).toHaveLength(8);
   });
 
   it('asks for a token when there is none, and explains a token that cannot read them', () => {
@@ -123,9 +131,9 @@ describe('repository commit activity', () => {
     // 10,474 is shown compactly, as a wall needs.
     expect(screen.getByText('10.5k')).toBeTruthy();
     // A repository busy all year keeps all 52 columns.
-    expect(container.querySelectorAll('.github-heatmap circle')).toHaveLength(
-      52 * 7,
-    );
+    expect(
+      container.querySelectorAll('.github-heatmap span:not(.is-blank)'),
+    ).toHaveLength(52 * 7);
     expect(screen.getByText(/427 contributors/)).toBeTruthy();
     expect(screen.getByText('Octomerger')).toBeTruthy();
     // 15,994 rounds to 16k rather than 16.0k, which reads better on a wall.
@@ -145,6 +153,9 @@ describe('repository commit activity', () => {
       repos: [],
       pending: 0,
       scope: 'Espen-PublAI/morrow-glance',
+      people: [],
+      peopleDays: 0,
+      wholeYear: true,
     };
     const { container } = show(
       'commits',
@@ -152,12 +163,54 @@ describe('repository commit activity', () => {
       repoSettings,
     );
     // 16 columns rather than 52, so the dots are legible.
-    expect(container.querySelectorAll('.github-heatmap circle')).toHaveLength(
-      16 * 7,
-    );
+    expect(
+      container.querySelectorAll('.github-heatmap span:not(.is-blank)'),
+    ).toHaveLength(16 * 7);
     expect(screen.getByText(/graph: last 16 weeks/)).toBeTruthy();
     // The numbers say what the picture cannot.
     expect(screen.getAllByText('26').length).toBeGreaterThanOrEqual(3);
+  });
+
+  it('names the people committing, ahead of the repositories', () => {
+    show(
+      'commits',
+      stored({
+        commitActivity: {
+          ...activity,
+          scope: 'Aptide-ai',
+          repos: [{ name: 'api', commits: 300 }],
+          people: [
+            { login: 'ada', commits: 42 },
+            { login: 'espen', commits: 11 },
+          ],
+          peopleDays: 28,
+        },
+      }),
+      repoSettings,
+    );
+    expect(screen.getByText('ada')).toBeTruthy();
+    expect(screen.getByText('42')).toBeTruthy();
+    // The repository list gives way to the people, and both are summarised.
+    expect(screen.queryByText('api')).toBeNull();
+    expect(screen.getByText(/2 people in 28 days · 1 repository/)).toBeTruthy();
+  });
+
+  it('falls back to repositories when no author could be read', () => {
+    show(
+      'commits',
+      stored({
+        commitActivity: {
+          ...activity,
+          scope: 'Aptide-ai',
+          repos: [{ name: 'api', commits: 300 }],
+          people: [],
+          peopleDays: 28,
+        },
+      }),
+      repoSettings,
+    );
+    expect(screen.getByText('api')).toBeTruthy();
+    expect(screen.getByText(/1 repository/)).toBeTruthy();
   });
 
   it('shows the graph alone when GitHub has not worked out the contributors', () => {
@@ -170,7 +223,7 @@ describe('repository commit activity', () => {
       repoSettings,
     );
     expect(
-      container.querySelectorAll('.github-heatmap circle').length,
+      container.querySelectorAll('.github-heatmap span:not(.is-blank)').length,
     ).toBeGreaterThan(0);
     // 10,474 is shown compactly, as a wall needs.
     expect(screen.getByText('10.5k')).toBeTruthy();
