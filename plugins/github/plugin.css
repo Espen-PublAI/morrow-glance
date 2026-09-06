@@ -18,6 +18,7 @@
 /* The graph: a column of weekday labels beside the grid, so a reader can tell
    that columns are weeks and rows are days of the week. */
 .github-graph {
+  flex: 1 1 auto;
   min-height: 0;
   display: grid;
   grid-template-columns: auto auto;
@@ -64,7 +65,10 @@
   grid-auto-flow: column;
   grid-template-rows: repeat(7, 1fr);
   grid-template-columns: repeat(var(--weeks), 1fr);
-  gap: clamp(1px, 0.5cqmin, 7px);
+  /* No gap: the cells are exactly square, and the dots make their own spacing
+     by scaling down inside them. A gap would eat unequally into the width and
+     the height and turn the dots into eggs. */
+  gap: 0;
   place-items: stretch;
   /* Square cells, so the dots sit on an even lattice rather than being
      stretched apart by a wide block until the grid stops reading as one. */
@@ -89,23 +93,23 @@
 }
 .github-heatmap .is-l0 {
   opacity: 0.22;
-  transform: scale(0.28);
+  transform: scale(0.2);
 }
 .github-heatmap .is-l1 {
   opacity: 0.45;
-  transform: scale(0.62);
+  transform: scale(0.5);
 }
 .github-heatmap .is-l2 {
   opacity: 0.62;
-  transform: scale(0.76);
+  transform: scale(0.66);
 }
 .github-heatmap .is-l3 {
   opacity: 0.8;
-  transform: scale(0.88);
+  transform: scale(0.8);
 }
 .github-heatmap .is-l4 {
   opacity: 1;
-  transform: scale(1);
+  transform: scale(0.92);
 }
 
 /* Activity: one sentence per row, sized so eight rows fill the block. */
@@ -188,28 +192,48 @@
   text-transform: uppercase;
 }
 
-/* In a wide block the square graph leaves room beside it, so the names sit
-   there rather than the block ending in empty space. */
-.github-body {
+/* People: one name per row, which is what a block of its own affords. */
+.github-people {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(0, 1fr);
-  gap: var(--space-gap);
-  align-items: stretch;
+  align-content: center;
+  gap: clamp(2px, 1.6cqmin, 18px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  overflow: hidden;
 }
 
-@container (min-width: 520px) and (min-aspect-ratio: 13 / 10) {
-  .github-body {
-    grid-template-columns: auto minmax(0, 1fr);
-    align-items: stretch;
-  }
-  .github-body .github-top {
-    display: grid;
-    align-content: center;
-    gap: clamp(2px, 1.4cqmin, 12px);
-    margin-top: 0;
-  }
+.github-people li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-gap);
+  font-size: clamp(12px, min(9cqmin, 5cqi), 88px);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.github-people strong {
+  font-weight: var(--weight-regular);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.github-people span {
+  color: var(--faint);
+}
+
+/* Figures with a block to themselves can be larger. */
+.github-figures.is-roomy {
+  flex: 1 1 auto;
+  align-content: center;
+  gap: clamp(12px, 8cqmin, 90px);
+}
+
+.github-figures.is-roomy li {
+  font-size: clamp(16px, min(16cqmin, 9cqi), 200px);
 }
 
 /* Top contributors: one line of names and commit counts. */

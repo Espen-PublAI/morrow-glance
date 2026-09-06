@@ -1158,7 +1158,9 @@ export async function fetchGitHub(
       );
     }
   }
-  const repoViews = context.view === 'commits' || context.view === 'repo';
+  const repoViews = ['commits', 'figures', 'people', 'repo'].includes(
+    context.view,
+  );
   if ((owner || wholeToken) && repoViews) {
     tasks.push(
       attempt('Commit activity', async () => {

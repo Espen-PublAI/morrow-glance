@@ -1,7 +1,7 @@
 import { GitBranch } from 'lucide-react';
 import type { CSSProperties } from 'react';
 
-import { readBooleanSetting, readStringSetting } from '@/lib/morrow/settings';
+import { readStringSetting } from '@/lib/morrow/settings';
 import { definePlugin, type PluginViewProps } from '@/lib/morrow/types';
 
 import { compactNumber, describeEvent, relativeTime } from './events';
@@ -21,14 +21,6 @@ import './plugin.css';
  */
 
 const EVENT_ROWS = 8;
-
-function readParts({ settings }: PluginViewProps) {
-  return {
-    figures: readBooleanSetting(settings, 'showFigures', true),
-    graph: readBooleanSetting(settings, 'showGraph', true),
-    people: readBooleanSetting(settings, 'showPeople', true),
-  };
-}
 
 function readLabels({ settings }: PluginViewProps) {
   const user = readStringSetting(settings, 'user').replace(/^@/, '');
@@ -293,36 +285,101 @@ function spanLabel(activity: { from: string; to: string }): string {
     : `last ${weeks} ${weeks === 1 ? 'week' : 'weeks'}`;
 }
 
-function CommitsView(props: PluginViewProps) {
+/**
+ * The repository views. Each shows one thing properly rather than crowding a
+ * block: the graph, the figures, or the people. They share the same fetched
+ * data, so three blocks side by side cost one fetch between them.
+ */
+function useRepoActivity(props: PluginViewProps) {
   const { repo: repoSetting, label: custom } = readLabels(props);
-  const parts = readParts(props);
   const scope =
     props.data && isGitHubData(props.data.data)
       ? props.data.data.commitActivity?.scope
       : '';
   const result = ready(props, custom || repoSetting || scope || 'Repository');
-  if ('state' in result) return result.state;
+  if ('state' in result) return result;
   const { data, label } = result;
-  const activity = data.commitActivity;
-  const people = data.topContributors;
   const pending = data.warnings.find((warning) =>
     warning.startsWith('Commit activity'),
   );
-
-  // Show whatever arrived. GitHub computes these statistics lazily, so the
-  // graph and the contributors can turn up on different polls, and a block
-  // that blanked itself until both were ready would look broken for minutes.
-  if (!activity && (!people || people.top.length === 0)) {
-    return (
-      <State
-        label={label}
-        text={pending ?? 'Enter a repository as owner/name'}
-      />
-    );
+  if (!data.commitActivity && (data.topContributors?.top.length ?? 0) === 0) {
+    return {
+      state: (
+        <State
+          label={label}
+          text={pending ?? 'Enter a repository as owner/name'}
+        />
+      ),
+    };
   }
+  return { data, label, activity: data.commitActivity };
+}
 
+function GraphView(props: PluginViewProps) {
+  const result = useRepoActivity(props);
+  if ('state' in result) return result.state;
+  const { label, activity } = result;
   const weeks = activity ? visibleWeeks(activity.weeks) : [];
-  const repoCount = activity?.repos.length ?? 0;
+  if (weeks.length === 0) {
+    return <State label={label} text="No commit graph yet" />;
+  }
+  return (
+    <Frame
+      label={label}
+      meta={`${weeks.length} weeks left to right, weekdays down`}
+    >
+      <DotGrid weeks={weeks} from={activity?.from} />
+    </Frame>
+  );
+}
+
+function FiguresView(props: PluginViewProps) {
+  const result = useRepoActivity(props);
+  if ('state' in result) return result.state;
+  const { label, activity, data } = result;
+  if (!activity) return <State label={label} text="No commit figures yet" />;
+  const repoCount = activity.repos.length;
+  return (
+    <Frame
+      label={label}
+      meta={
+        repoCount > 1
+          ? `across ${repoCount} repositories`
+          : data.topContributors?.total
+            ? `${compactNumber(data.topContributors.total)} contributors`
+            : undefined
+      }
+    >
+      <ol className="github-figures is-roomy">
+        <li>
+          <strong>{compactNumber(activity.last7)}</strong>
+          <small>commits this week</small>
+        </li>
+        <li>
+          <strong>{compactNumber(activity.last28)}</strong>
+          <small>last 28 days</small>
+        </li>
+        <li>
+          <strong>{compactNumber(activity.total)}</strong>
+          <small>
+            {activity.wholeYear ? 'last year' : spanLabel(activity)}
+          </small>
+        </li>
+        {activity.allTime !== null && (
+          <li>
+            <strong>{compactNumber(activity.allTime)}</strong>
+            <small>all time</small>
+          </li>
+        )}
+      </ol>
+    </Frame>
+  );
+}
+
+function PeopleView(props: PluginViewProps) {
+  const result = useRepoActivity(props);
+  if ('state' in result) return result.state;
+  const { label, activity, data } = result;
   const developers = activity?.people ?? [];
   /** People if we know them, otherwise repositories, otherwise contributors. */
   const byline =
@@ -336,79 +393,31 @@ function CommitsView(props: PluginViewProps) {
             name: repo.name,
             commits: repo.commits,
           }))
-        : (people?.top ?? []).map((person) => ({
+        : (data.topContributors?.top ?? []).map((person) => ({
             name: person.login,
             commits: person.commits,
           }));
-  const meta = [
-    developers.length > 0
-      ? `${developers.length} ${developers.length === 1 ? 'person' : 'people'} in ${activity?.peopleDays ?? 28} days`
-      : repoCount > 0
-        ? `${repoCount} ${repoCount === 1 ? 'repository' : 'repositories'}`
-        : people?.total
-          ? `${compactNumber(people.total)} contributors`
-          : '',
-    developers.length > 0 && repoCount > 0
-      ? `${repoCount} ${repoCount === 1 ? 'repository' : 'repositories'}`
-      : '',
-    activity && activity.pending > 0
-      ? `${activity.pending} still being computed`
-      : '',
-    weeks.length > 0 && parts.graph
-      ? `${weeks.length} weeks left to right, weekdays down`
-      : '',
-    activity ? '' : 'commit graph on the way',
-  ]
-    .filter(Boolean)
-    .join(' \u00b7 ');
-
+  if (byline.length === 0) {
+    return <State label={label} text="No contributors yet" />;
+  }
+  const days = activity?.peopleDays ?? 0;
   return (
-    <Frame label={label} meta={meta || undefined}>
-      {activity &&
-        parts.figures && (
-          // Figures first: they stay readable however quiet the repository is,
-          // where a mostly empty grid does not.
-          <ol className="github-figures">
-            <li>
-              <strong>{compactNumber(activity.last7)}</strong>
-              <small>commits this week</small>
-            </li>
-            <li>
-              <strong>{compactNumber(activity.last28)}</strong>
-              <small>last 28 days</small>
-            </li>
-            <li>
-              <strong>{compactNumber(activity.total)}</strong>
-              {/* Only call it a year when the data really covers one. */}
-              <small>
-                {activity.wholeYear ? 'last year' : spanLabel(activity)}
-              </small>
-            </li>
-            {activity.allTime !== null && (
-              <li>
-                <strong>{compactNumber(activity.allTime)}</strong>
-                <small>all time</small>
-              </li>
-            )}
-          </ol>
-        )}
-      <div className="github-body">
-        {weeks.length > 0 && parts.graph && (
-          <DotGrid weeks={weeks} from={activity?.from} />
-        )}
-        {/* Who has been committing answers "how is the team doing" better than
-            which repository they committed to. Repositories are the fallback. */}
-        {byline.length > 0 && parts.people && (
-          <ol className="github-top">
-            {byline.slice(0, 5).map((entry) => (
-              <li key={entry.name}>
-                <strong>{entry.name}</strong>
-                <span>{compactNumber(entry.commits)}</span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </div>
+    <Frame
+      label={label}
+      meta={
+        developers.length > 0
+          ? `commits in the last ${days} days`
+          : 'commits, all time'
+      }
+    >
+      <ol className="github-people">
+        {byline.slice(0, 8).map((entry) => (
+          <li key={entry.name}>
+            <strong>{entry.name}</strong>
+            <span>{compactNumber(entry.commits)}</span>
+          </li>
+        ))}
+      </ol>
     </Frame>
   );
 }
@@ -422,7 +431,9 @@ export const plugin = definePlugin({
       'A repository\u2019s commit activity and contributors, or one person\u2019s contributions and activity.',
     refreshSeconds: 300,
     views: [
-      { id: 'commits', name: 'Repository: commit activity' },
+      { id: 'commits', name: 'Repository: commit graph' },
+      { id: 'figures', name: 'Repository: figures' },
+      { id: 'people', name: 'Repository: people' },
       { id: 'repo', name: 'Repository: stars and open work' },
       { id: 'heatmap', name: 'Person: contributions' },
       { id: 'activity', name: 'Person: activity' },
@@ -453,26 +464,6 @@ export const plugin = definePlugin({
         type: 'text',
         placeholder: 'Optional \u00b7 defaults to what is shown',
       },
-      // Tick what this block shows, so one can be the graph alone and another
-      // the figures and the people.
-      {
-        id: 'showFigures',
-        label: 'Show the figures',
-        type: 'boolean',
-        defaultValue: true,
-      },
-      {
-        id: 'showGraph',
-        label: 'Show the graph',
-        type: 'boolean',
-        defaultValue: true,
-      },
-      {
-        id: 'showPeople',
-        label: 'Show the people',
-        type: 'boolean',
-        defaultValue: true,
-      },
     ],
     defaultSize: { span: 6, rowSpan: 2 },
     minSize: { span: 2, rowSpan: 1 },
@@ -480,7 +471,9 @@ export const plugin = definePlugin({
   },
   icon: GitBranch,
   views: {
-    commits: CommitsView,
+    commits: GraphView,
+    figures: FiguresView,
+    people: PeopleView,
     repo: RepoView,
     heatmap: HeatmapView,
     activity: ActivityView,

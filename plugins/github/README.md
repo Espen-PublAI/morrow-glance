@@ -15,11 +15,22 @@ Two views describe a repository and two describe a person.
 To see how a project is doing, use **Repository: commit activity**. It counts
 everybody's commits, not just yours, and needs no token.
 
-## What a block shows
+## One block, one thing
 
-The **Repository: commit activity** view has three parts, each of which can be
-switched off in the block settings: the figures, the graph, and the people. So
-one block can be the graph alone and another the figures and the names.
+The repository has four views and each shows one thing properly rather than
+crowding a block: **commit graph**, **figures**, **people**, and **stars and
+open work**. Put two or three side by side rather than trying to fit
+everything into one.
+
+They share the same fetched data, so several blocks pointed at the same
+repository cost one fetch between them.
+
+A token, though, is stored per block. If you use more than one GitHub block,
+set `MORROW_GITHUB_TOKEN` on Morrow Server once instead of pasting the token
+into each of them. Note also that deleting a block deletes its secrets, so
+rebuilding a block means entering its token again.
+
+## Reading the graph
 
 In the graph, **each column is one week**, oldest on the left, with the month
 named above the first column that falls in it. **Each row is a day of the

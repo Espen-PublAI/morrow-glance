@@ -110,7 +110,7 @@ describe('contributions view', () => {
   });
 });
 
-describe('repository commit activity', () => {
+describe('the repository views, one thing each', () => {
   // The fixture's final week is the week of 2026-08-30, so pin "now" inside it.
   const activity = parseCommitActivity(
     commitActivityFixture,
@@ -118,199 +118,108 @@ describe('repository commit activity', () => {
   );
   const people = parseContributors(contributorsFixture, 427);
   const repoSettings = { user: '', repo: 'github/docs' };
+  const full = {
+    ...activity,
+    scope: 'Aptide-ai',
+    repos: [{ name: 'api', commits: 300 }],
+    people: [
+      { login: 'ada', commits: 42 },
+      { login: 'espen', commits: 11 },
+    ],
+    peopleDays: 28,
+    allTime: 900,
+  };
 
-  it('draws the repository year and names the busiest contributors', () => {
+  it('draws the graph alone, with both axes named', () => {
     const { container } = show(
       'commits',
-      stored({ commitActivity: activity, topContributors: people }),
+      stored({ commitActivity: full, topContributors: people }),
       repoSettings,
     );
-    // Figures stay readable however sparse the grid is.
-    expect(screen.getByText('commits this week')).toBeTruthy();
-    expect(screen.getByText('last 28 days')).toBeTruthy();
-    // 10,474 is shown compactly, as a wall needs.
-    expect(screen.getByText('10.5k')).toBeTruthy();
-    // A repository busy all year keeps all 52 columns.
-    expect(
-      container.querySelectorAll('.github-heatmap span:not(.is-blank)'),
-    ).toHaveLength(52 * 7);
-    expect(screen.getByText(/427 contributors/)).toBeTruthy();
-    expect(screen.getByText('Octomerger')).toBeTruthy();
-    // 15,994 rounds to 16k rather than 16.0k, which reads better on a wall.
-    expect(screen.getByText('16k')).toBeTruthy();
+    expect(container.querySelectorAll('.github-heatmap span')).toHaveLength(
+      52 * 7,
+    );
+    const days = [...container.querySelectorAll('.github-weekdays li')].map(
+      (li) => li.textContent,
+    );
+    expect(days).toEqual(['', 'Mon', '', 'Wed', '', 'Fri', '']);
+    expect(container.querySelectorAll('.github-months li').length).toBe(52);
+    // Nothing else crowds it.
+    expect(container.querySelector('.github-figures')).toBeNull();
+    expect(container.querySelector('.github-people')).toBeNull();
   });
 
-  it('narrows the grid for a young repository instead of a year of blanks', () => {
+  it('shows the figures alone', () => {
+    const { container } = show(
+      'figures',
+      stored({ commitActivity: full }),
+      repoSettings,
+    );
+    expect(screen.getByText('commits this week')).toBeTruthy();
+    expect(screen.getByText('last 28 days')).toBeTruthy();
+    expect(screen.getByText('all time')).toBeTruthy();
+    expect(screen.getByText('900')).toBeTruthy();
+    expect(container.querySelector('.github-heatmap')).toBeNull();
+    expect(container.querySelector('.github-people')).toBeNull();
+  });
+
+  it('shows the people alone, one per row', () => {
+    const { container } = show(
+      'people',
+      stored({ commitActivity: full }),
+      repoSettings,
+    );
+    expect(screen.getByText('ada')).toBeTruthy();
+    expect(screen.getByText('42')).toBeTruthy();
+    expect(screen.getByText(/commits in the last 28 days/)).toBeTruthy();
+    expect(container.querySelector('.github-heatmap')).toBeNull();
+    expect(container.querySelector('.github-figures')).toBeNull();
+  });
+
+  it('falls back to repositories, then to all-time contributors', () => {
+    show(
+      'people',
+      stored({ commitActivity: { ...full, people: [] } }),
+      repoSettings,
+    );
+    expect(screen.getByText('api')).toBeTruthy();
+    cleanup();
+    show(
+      'people',
+      stored({
+        commitActivity: { ...full, people: [], repos: [] },
+        topContributors: people,
+      }),
+      repoSettings,
+    );
+    expect(screen.getByText('Octomerger')).toBeTruthy();
+    expect(screen.getByText(/all time/)).toBeTruthy();
+  });
+
+  it('narrows the graph for a young repository instead of a year of blanks', () => {
     const quiet = {
+      ...full,
       weeks: Array.from({ length: 52 }, (_, index) =>
         index === 51 ? [0, 0, 0, 0, 14, 12, 0] : [0, 0, 0, 0, 0, 0, 0],
       ),
-      total: 26,
-      last7: 26,
-      last28: 26,
-      from: '2025-09-07',
-      to: '2026-09-05',
-      repos: [],
-      pending: 0,
-      scope: 'Espen-PublAI/morrow-glance',
-      people: [],
-      peopleDays: 0,
-      wholeYear: true,
-      allTime: null,
     };
     const { container } = show(
       'commits',
       stored({ commitActivity: quiet }),
       repoSettings,
     );
-    // 16 columns rather than 52, so the dots are legible.
-    expect(
-      container.querySelectorAll('.github-heatmap span:not(.is-blank)'),
-    ).toHaveLength(16 * 7);
-    expect(
-      screen.getByText(/16 weeks left to right, weekdays down/),
-    ).toBeTruthy();
-    // The numbers say what the picture cannot.
-    expect(screen.getAllByText('26').length).toBeGreaterThanOrEqual(3);
+    expect(container.querySelectorAll('.github-heatmap span')).toHaveLength(
+      16 * 7,
+    );
+    expect(screen.getByText(/16 weeks left to right/)).toBeTruthy();
   });
 
-  it('names the people committing, ahead of the repositories', () => {
+  it('says what is missing rather than blanking', () => {
     show(
-      'commits',
-      stored({
-        commitActivity: {
-          ...activity,
-          scope: 'Aptide-ai',
-          repos: [{ name: 'api', commits: 300 }],
-          people: [
-            { login: 'ada', commits: 42 },
-            { login: 'espen', commits: 11 },
-          ],
-          peopleDays: 28,
-          allTime: 12_004,
-        },
-      }),
-      repoSettings,
-    );
-    expect(screen.getByText('all time')).toBeTruthy();
-    expect(screen.getByText('12k')).toBeTruthy();
-    expect(screen.getByText('ada')).toBeTruthy();
-    expect(screen.getByText('42')).toBeTruthy();
-    // The repository list gives way to the people, and both are summarised.
-    expect(screen.queryByText('api')).toBeNull();
-    expect(screen.getByText(/2 people in 28 days · 1 repository/)).toBeTruthy();
-  });
-
-  it('falls back to repositories when no author could be read', () => {
-    show(
-      'commits',
-      stored({
-        commitActivity: {
-          ...activity,
-          scope: 'Aptide-ai',
-          repos: [{ name: 'api', commits: 300 }],
-          people: [],
-          peopleDays: 28,
-          allTime: 12_004,
-        },
-      }),
-      repoSettings,
-    );
-    expect(screen.getByText('api')).toBeTruthy();
-    expect(screen.getByText(/1 repository/)).toBeTruthy();
-  });
-
-  it('shows only the parts that are ticked', () => {
-    const full = {
-      ...activity,
-      scope: 'Aptide-ai',
-      repos: [{ name: 'api', commits: 300 }],
-      people: [{ login: 'ada', commits: 42 }],
-      peopleDays: 28,
-      allTime: 900,
-    };
-    // Graph only: no figures, no names.
-    const graphOnly = show('commits', stored({ commitActivity: full }), {
-      user: '',
-      repo: 'Aptide-ai',
-      showFigures: false,
-      showPeople: false,
-    });
-    expect(graphOnly.container.querySelector('.github-heatmap')).toBeTruthy();
-    expect(graphOnly.container.querySelector('.github-figures')).toBeNull();
-    expect(graphOnly.container.querySelector('.github-top')).toBeNull();
-    cleanup();
-
-    // Figures and people, no graph.
-    const rest = show('commits', stored({ commitActivity: full }), {
-      user: '',
-      repo: 'Aptide-ai',
-      showGraph: false,
-    });
-    expect(rest.container.querySelector('.github-heatmap')).toBeNull();
-    expect(rest.container.querySelector('.github-figures')).toBeTruthy();
-    expect(screen.getByText('ada')).toBeTruthy();
-  });
-
-  it('labels the days so the axes can be read', () => {
-    const { container } = show(
-      'commits',
-      stored({ commitActivity: { ...activity, scope: 'Aptide-ai' } }),
-      repoSettings,
-    );
-    const days = [...container.querySelectorAll('.github-weekdays li')].map(
-      (li) => li.textContent,
-    );
-    // Seven rows, Sunday first, with three named so the grid can be read
-    // without crowding it.
-    expect(days).toEqual(['', 'Mon', '', 'Wed', '', 'Fri', '']);
-    expect(screen.getByText(/weeks left to right, weekdays down/)).toBeTruthy();
-  });
-
-  it('shows the graph alone when GitHub has not worked out the contributors', () => {
-    const { container } = show(
-      'commits',
-      stored({
-        commitActivity: activity,
-        topContributors: { total: null, top: [] },
-      }),
-      repoSettings,
-    );
-    expect(
-      container.querySelectorAll('.github-heatmap span:not(.is-blank)').length,
-    ).toBeGreaterThan(0);
-    // 10,474 is shown compactly, as a wall needs.
-    expect(screen.getByText('10.5k')).toBeTruthy();
-    expect(container.querySelector('.github-top')).toBeNull();
-  });
-
-  it('shows the contributors when the graph is still being computed', () => {
-    const { container } = show(
       'commits',
       stored({
         commitActivity: null,
-        topContributors: people,
-        warnings: [
-          'Commit activity: GitHub is still working out this repository.',
-        ],
-      }),
-      repoSettings,
-    );
-    // The part that arrived is on screen rather than discarded.
-    expect(screen.getByText('Octomerger')).toBeTruthy();
-    expect(
-      screen.getByText(/427 contributors · commit graph on the way/),
-    ).toBeTruthy();
-    expect(container.querySelector('.github-heatmap')).toBeNull();
-  });
-
-  it('explains itself when nothing arrived at all', () => {
-    show(
-      'commits',
-      stored({
-        warnings: [
-          'Commit activity: GitHub is still working out this repository.',
-        ],
+        warnings: ['Commit activity: GitHub is still working out this one.'],
       }),
       repoSettings,
     );
