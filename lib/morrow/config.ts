@@ -1,6 +1,7 @@
 import {
   DEFAULT_FOOTER,
   DEFAULT_HOUR_FORMAT,
+  DEFAULT_LOCALE,
   DEFAULT_ROTATION_SECONDS,
   DEFAULT_SCREEN_ID,
   DEFAULT_SCREENS,
@@ -335,6 +336,19 @@ function boolean(value: unknown, path: string, fallback: boolean): boolean {
  * Footer fields default to shown, so a configuration written before they
  * existed keeps the footer it had.
  */
+/** A BCP 47 language tag, shaped rather than enumerated, so any language works. */
+const LOCALE_TAG = /^[A-Za-z]{2,8}(-[A-Za-z0-9]{2,8})*$/;
+
+function locale(value: unknown): string {
+  if (value === undefined || value === null || value === '') {
+    return DEFAULT_LOCALE;
+  }
+  const tag = text(value, 'locale', { max: 35 });
+  if (!LOCALE_TAG.test(tag))
+    fail('locale', 'expected a language tag like nb-NO');
+  return tag;
+}
+
 function footer(value: unknown): FooterFields {
   if (value === undefined || value === null) return { ...DEFAULT_FOOTER };
   const source = object(value, 'footer');
@@ -435,6 +449,7 @@ export function parseMorrowConfig(input: unknown): MorrowConfig {
     pages,
     disabledPlugins,
     footer: footer(source.footer),
+    locale: locale(source.locale),
     hourFormat: oneOf(
       source.hourFormat ?? DEFAULT_HOUR_FORMAT,
       'hourFormat',

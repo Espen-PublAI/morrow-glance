@@ -78,7 +78,7 @@ export function describeEvent(
 }
 
 /** Compact relative time for a wall: now, 5m, 2h, 3d, 2w, or a date. */
-export function relativeTime(iso: string, now: Date): string {
+export function relativeTime(iso: string, now: Date, locale = 'en-GB'): string {
   const then = new Date(iso).getTime();
   if (!Number.isFinite(then)) return '';
   const seconds = Math.max(0, Math.round((now.getTime() - then) / 1000));
@@ -91,17 +91,17 @@ export function relativeTime(iso: string, now: Date): string {
   if (days < 14) return `${days}d`;
   const weeks = Math.round(days / 7);
   if (weeks < 9) return `${weeks}w`;
-  return new Date(then).toLocaleDateString('en-GB', {
+  return new Date(then).toLocaleDateString(locale, {
     day: 'numeric',
     month: 'short',
   });
 }
 
 /** 1234 → 1,234; 12345 → 12.3k, for figures on a wall. */
-export function compactNumber(value: number): string {
+export function compactNumber(value: number, locale = 'en-GB'): string {
   if (value >= 10_000) {
     const k = value / 1000;
     return `${k >= 100 ? Math.round(k) : k.toFixed(1).replace(/\.0$/, '')}k`;
   }
-  return value.toLocaleString('en-GB');
+  return value.toLocaleString(locale);
 }

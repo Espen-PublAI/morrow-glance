@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   describeOffset,
+  formatDate,
   formatTime,
   timeZoneCity,
   zoneClock,
@@ -75,5 +76,27 @@ describe('the display\u2019s hour format', () => {
     const early = new Date('2026-09-06T05:04:00.000Z');
     expect(formatTime(early, 'UTC', '24h')).toBe('05:04');
     expect(formatTime(early, 'UTC', '12h')).toMatch(/^5:04\s?AM$/i);
+  });
+});
+
+describe('the display\u2019s language', () => {
+  const day = new Date('2026-09-06T10:00:00.000Z');
+
+  it('writes dates in the language the display asks for', () => {
+    expect(formatDate(day, 'Europe/Oslo', 'en-GB')).toMatch(/Sunday/);
+    // A Norwegian municipality should not have to read English weekdays.
+    expect(formatDate(day, 'Europe/Oslo', 'nb-NO')).toMatch(/søndag/i);
+    expect(formatDate(day, 'Europe/Oslo', 'de-DE')).toMatch(/Sonntag/);
+  });
+
+  it('falls back rather than failing a display on an unknown tag', () => {
+    // Well-formed but not a language anyone has: still returns something.
+    expect(formatDate(day, 'Europe/Oslo', 'zz-ZZ')).not.toBe('');
+    expect(formatTime(day, 'Europe/Oslo', '24h', 'zz-ZZ')).toMatch(/\d/);
+  });
+
+  it('keeps the hour format independent of the language', () => {
+    expect(formatTime(day, 'Europe/Oslo', '24h', 'nb-NO')).toBe('12:00');
+    expect(formatTime(day, 'Europe/Oslo', '12h', 'nb-NO')).toMatch(/12[.:]00/);
   });
 });

@@ -316,6 +316,25 @@ describe('parseMorrowConfig', () => {
     ).toThrow(/hourFormat/);
   });
 
+  it('defaults the language to en-GB and accepts any tag', () => {
+    const { locale: _l, ...before } = morrowConfig;
+    expect(parseMorrowConfig(before).locale).toBe('en-GB');
+    for (const tag of ['nb-NO', 'nn', 'vi-VN', 'zh-Hans-CN']) {
+      expect(parseMorrowConfig({ ...morrowConfig, locale: tag }).locale).toBe(
+        tag,
+      );
+    }
+  });
+
+  it('refuses something that is not a language tag', () => {
+    expect(() =>
+      parseMorrowConfig({ ...morrowConfig, locale: 'Norwegian please' }),
+    ).toThrow(/locale/);
+    expect(() => parseMorrowConfig({ ...morrowConfig, locale: 42 })).toThrow(
+      /locale/,
+    );
+  });
+
   it('names the failing path in the error', () => {
     try {
       parseMorrowConfig({ ...morrowConfig, screens: [{ id: 'x' }] });

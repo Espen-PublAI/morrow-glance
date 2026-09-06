@@ -28,6 +28,7 @@ export function GlanceRenderer({
   blockData,
   timeZone,
   hourFormat,
+  locale,
 }: {
   page: GlancePage;
   now: Date;
@@ -37,6 +38,8 @@ export function GlanceRenderer({
   timeZone: string;
   /** How the display writes times, passed to every view. */
   hourFormat?: MorrowHourFormat;
+  /** The language the display writes in, passed to every view. */
+  locale?: string;
 }) {
   const layoutStyle: LayoutStyle = {
     '--columns': page.layout.columns,
@@ -53,6 +56,7 @@ export function GlanceRenderer({
           data: blockData?.[block.id],
           timeZone,
           hourFormat,
+          locale,
         });
         const style: BlockStyle = {
           '--column': block.column,

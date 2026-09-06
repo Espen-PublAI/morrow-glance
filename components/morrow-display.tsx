@@ -203,8 +203,10 @@ export function MorrowDisplay({ initialConfig }: MorrowDisplayProps) {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [hasMultiplePages, move]);
 
-  const time = now ? formatTime(now, config.timeZone, config.hourFormat) : '';
-  const date = now ? formatDate(now, config.timeZone) : '';
+  const time = now
+    ? formatTime(now, config.timeZone, config.hourFormat, config.locale)
+    : '';
+  const date = now ? formatDate(now, config.timeZone, config.locale) : '';
 
   return (
     <main
@@ -238,6 +240,7 @@ export function MorrowDisplay({ initialConfig }: MorrowDisplayProps) {
                   blockData={blockData}
                   timeZone={config.timeZone}
                   hourFormat={config.hourFormat}
+                  locale={config.locale}
                 />
               )}
             </TabsContent>

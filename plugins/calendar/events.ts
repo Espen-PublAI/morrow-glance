@@ -93,9 +93,13 @@ export function localDate(iso: string, timeZone: string): string {
   }
 }
 
-export function formatClock(iso: string, timeZone: string): string {
+export function formatClock(
+  iso: string,
+  timeZone: string,
+  locale = 'en-GB',
+): string {
   try {
-    return new Intl.DateTimeFormat('en-GB', {
+    return new Intl.DateTimeFormat(locale, {
       timeZone,
       hour: '2-digit',
       minute: '2-digit',

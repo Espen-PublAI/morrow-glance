@@ -12,6 +12,9 @@ export const DEFAULT_LAYOUT: GlanceLayout = { columns: 12, rows: 5 };
 /** Seconds between page rotations for a fresh install. */
 export const DEFAULT_ROTATION_SECONDS = 30;
 
+/** The language a clean install writes in. Any BCP 47 tag works. */
+export const DEFAULT_LOCALE = 'en-GB';
+
 /** Twenty-four hour unless the display says otherwise. */
 export const DEFAULT_HOUR_FORMAT: MorrowHourFormat = '24h';
 

@@ -23,6 +23,7 @@ import {
   type AdminStateOptions,
 } from '@/components/admin/use-admin-state';
 import { Button } from '@/components/ui/button';
+import { COMMON_LOCALES } from '@/lib/morrow/locales';
 import { screenPresets } from '@/lib/morrow/screens';
 import { MORROW_COLORS } from '@/lib/morrow/types';
 import { pluginRegistry } from '@/plugins';
@@ -72,6 +73,7 @@ export function AdminConsole(props: AdminStateOptions) {
     save,
   } = useAdminState(props);
   const timeZoneFieldId = useId();
+  const localeFieldId = useId();
 
   return (
     <main className="admin-shell">
@@ -205,6 +207,34 @@ export function AdminConsole(props: AdminStateOptions) {
                 ))}
               </select>
             </label>
+            <label className="field-label" htmlFor={localeFieldId}>
+              Language
+              <input
+                id={localeFieldId}
+                data-lpignore="true"
+                list={`${localeFieldId}-options`}
+                value={config.locale}
+                onChange={(event) =>
+                  updateConfig((current) => ({
+                    ...current,
+                    locale: event.target.value,
+                  }))
+                }
+                placeholder="en-GB"
+                autoComplete="off"
+              />
+              <datalist id={`${localeFieldId}-options`}>
+                {COMMON_LOCALES.map((tag) => (
+                  <option key={tag.tag} value={tag.tag}>
+                    {tag.name}
+                  </option>
+                ))}
+              </datalist>
+              <small className="field-help">
+                Any language tag your browser knows
+              </small>
+            </label>
+
             <label className="field-label">
               Clock
               <select

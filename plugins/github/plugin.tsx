@@ -50,13 +50,17 @@ const RADII = [1, 2.4, 3.1, 3.7, 4.3] as const;
 const TARGET_RATIO = 2.9;
 
 /** A short month name above the first column that falls in each month. */
-function monthLabels(count: number, from: string | undefined): string[] {
+function monthLabels(
+  count: number,
+  from: string | undefined,
+  locale: string,
+): string[] {
   const start = from ? Date.parse(`${from}T00:00:00Z`) : Number.NaN;
   if (!Number.isFinite(start)) return Array.from({ length: count }, () => '');
   let previous = '';
   return Array.from({ length: count }, (_, week) => {
     const date = new Date(start + week * 7 * 86_400_000);
-    const name = date.toLocaleDateString('en-GB', {
+    const name = date.toLocaleDateString(locale, {
       month: 'short',
       timeZone: 'UTC',
     });
@@ -66,9 +70,17 @@ function monthLabels(count: number, from: string | undefined): string[] {
   });
 }
 
-function DotGrid({ weeks, from }: { weeks: number[][]; from?: string }) {
+function DotGrid({
+  weeks,
+  from,
+  locale = 'en-GB',
+}: {
+  weeks: number[][];
+  from?: string;
+  locale?: string;
+}) {
   const max = Math.max(0, ...weeks.flat());
-  const months = monthLabels(weeks.length, from);
+  const months = monthLabels(weeks.length, from, locale);
   const height = HEADER + 7 * CELL;
   // Never tighter than a square lattice, wider when there is room to spread.
   const pitch = Math.max(
@@ -212,9 +224,9 @@ function HeatmapView(props: PluginViewProps) {
   return (
     <Frame
       label={label}
-      meta={`${calendar.total.toLocaleString('en-GB')} contributions in the last year`}
+      meta={`${calendar.total.toLocaleString(props.locale)} contributions in the last year`}
     >
-      <DotGrid weeks={calendar.weeks} />
+      <DotGrid weeks={calendar.weeks} locale={props.locale} />
     </Frame>
   );
 }
@@ -365,7 +377,7 @@ function GraphView(props: PluginViewProps) {
       label={label}
       meta={`${weeks.length} weeks left to right, weekdays down`}
     >
-      <DotGrid weeks={weeks} from={activity?.from} />
+      <DotGrid weeks={weeks} from={activity?.from} locale={props.locale} />
     </Frame>
   );
 }

@@ -10,10 +10,11 @@ export function formatTime(
   date: Date,
   timeZone?: string,
   hourFormat: MorrowHourFormat = '24h',
+  locale = 'en-GB',
 ): string {
   const twelve = hourFormat === '12h';
   try {
-    return new Intl.DateTimeFormat(twelve ? 'en-US' : 'en-GB', {
+    return new Intl.DateTimeFormat(locale, {
       timeZone: timeZone || undefined,
       hour: twelve ? 'numeric' : '2-digit',
       minute: '2-digit',
@@ -24,9 +25,13 @@ export function formatTime(
   }
 }
 
-export function formatDate(date: Date, timeZone?: string): string {
+export function formatDate(
+  date: Date,
+  timeZone?: string,
+  locale = 'en-GB',
+): string {
   try {
-    return new Intl.DateTimeFormat('en-GB', {
+    return new Intl.DateTimeFormat(locale, {
       timeZone: timeZone || undefined,
       weekday: 'long',
       day: 'numeric',
@@ -49,6 +54,8 @@ export function timeZoneCity(timeZone: string): string {
 }
 
 /** Minutes east of UTC for a zone at a given instant (west is negative). */
+// Fixed locale on purpose: numeric parts for timezone arithmetic, never text
+// for a reader, so this must not follow the display's language.
 export function zoneOffsetMinutes(date: Date, timeZone: string): number {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-US', {

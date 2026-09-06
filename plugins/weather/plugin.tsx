@@ -5,6 +5,7 @@ import { parseCoordinates } from '@/lib/morrow/geo';
 import { readStringSetting } from '@/lib/morrow/settings';
 import {
   definePlugin,
+  type MorrowHourFormat,
   type PluginSettings,
   type PluginViewProps,
 } from '@/lib/morrow/types';
@@ -56,22 +57,45 @@ function usePlace({ settings, timeZone: displayZone }: PluginViewProps) {
   };
 }
 
-function hourLabel(time: string, zone: string): string {
+function hourLabel(
+  time: string,
+  zone: string,
+  locale: string,
+  hourFormat: MorrowHourFormat,
+): string {
+  const twelve = hourFormat === '12h';
   try {
-    return new Intl.DateTimeFormat('en-GB', {
+    return new Intl.DateTimeFormat(locale, {
       timeZone: zone,
-      hour: '2-digit',
-      hourCycle: 'h23',
+      hour: twelve ? 'numeric' : '2-digit',
+      ...(twelve ? { hour12: true } : { hourCycle: 'h23' as const }),
     }).format(new Date(time));
   } catch {
     return time.slice(11, 13);
   }
 }
 
-function dayLabel(date: string, index: number, zone: string): string {
-  if (index === 0) return 'Today';
+/** "Today" in the display's language, falling back to the weekday name. */
+function todayLabel(locale: string): string {
   try {
-    return new Intl.DateTimeFormat('en-GB', {
+    const word = new Intl.RelativeTimeFormat(locale, {
+      numeric: 'auto',
+    }).format(0, 'day');
+    return word.charAt(0).toUpperCase() + word.slice(1);
+  } catch {
+    return 'Today';
+  }
+}
+
+function dayLabel(
+  date: string,
+  index: number,
+  zone: string,
+  locale: string,
+): string {
+  if (index === 0) return todayLabel(locale);
+  try {
+    return new Intl.DateTimeFormat(locale, {
       timeZone: zone,
       weekday: 'short',
     }).format(new Date(`${date}T12:00:00Z`));
@@ -133,6 +157,8 @@ function NowView(props: PluginViewProps) {
 function TodayView(props: PluginViewProps) {
   const { now, data } = props;
   const { zone, label, hasPlace, units } = usePlace(props);
+  const locale = props.locale ?? 'en-GB';
+  const hourFormat = props.hourFormat ?? '24h';
   const hours = data ? upcomingHours(data.data, now, 6, 2) : [];
   if (hours.length === 0)
     return <Empty label={label} hasPlace={hasPlace} error={data?.error} />;
@@ -143,7 +169,9 @@ function TodayView(props: PluginViewProps) {
       <ol className="weather-hours">
         {hours.map((hour) => (
           <li key={hour.time}>
-            <span className="weather-hour">{hourLabel(hour.time, zone)}</span>
+            <span className="weather-hour">
+              {hourLabel(hour.time, zone, locale, hourFormat)}
+            </span>
             <WeatherIcon code={hour.symbol} className="weather-icon" />
             <strong>{degrees(hour.temperature, units)}</strong>
           </li>
@@ -156,6 +184,7 @@ function TodayView(props: PluginViewProps) {
 function WeekView(props: PluginViewProps) {
   const { data } = props;
   const { zone, label, hasPlace, units } = usePlace(props);
+  const locale = props.locale ?? 'en-GB';
   const days = data ? dailyForecast(data.data, zone, 7) : [];
   if (days.length === 0)
     return <Empty label={label} hasPlace={hasPlace} error={data?.error} />;
@@ -167,7 +196,7 @@ function WeekView(props: PluginViewProps) {
         {days.map((day, index) => (
           <li key={day.date}>
             <span className="weather-day">
-              {dayLabel(day.date, index, zone)}
+              {dayLabel(day.date, index, zone, locale)}
             </span>
             <WeatherIcon code={day.symbol} className="weather-icon" />
             <span className="weather-rain">

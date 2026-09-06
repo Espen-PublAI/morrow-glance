@@ -110,6 +110,12 @@ export interface MorrowConfig {
   footer: FooterFields;
   /** Whether times read 16:15 or 4:15 pm, everywhere on the display. */
   hourFormat: MorrowHourFormat;
+  /**
+   * The language dates and names are written in, as a BCP 47 tag such as
+   * `nb-NO`. Anything the browser knows works; an unknown tag falls back
+   * rather than failing a display.
+   */
+  locale: string;
 }
 
 export type PluginSettingValue = string | number | boolean;
@@ -221,6 +227,8 @@ export interface PluginViewProps {
   timeZone: string;
   /** How the display writes times, so a plugin agrees with the footer. */
   hourFormat?: MorrowHourFormat;
+  /** The language the display writes in, so plugins agree with the footer. */
+  locale?: string;
   /** Present when the block has a data source and something has been stored. */
   data?: BlockData;
 }

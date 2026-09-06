@@ -39,7 +39,7 @@ Other scripts:
 
 Admin is the visual control surface for the system. It supports:
 
-- display name, location, timezone, paper colour, twelve- or twenty-four-hour clock, and page rotation;
+- display name, location, timezone, language, paper colour, twelve- or twenty-four-hour clock, and page rotation;
 - which of the date, location, and time the footer shows, for when a block already carries that information;
 - adding, naming, and removing pages;
 - dragging plugins from the library onto the page grid, moving blocks, and resizing them from a corner handle, with keyboard nudging for accessibility;
@@ -95,6 +95,20 @@ Every page owns a grid and plugin blocks. The default page is empty:
 ```
 
 With multiple pages, the Player automatically enables tabs, rotation, touch gestures, and keyboard navigation.
+
+## Language
+
+Dates, weekday names and month names follow the display's **language**, set in
+Admin as a BCP 47 tag such as `nb-NO`. Admin suggests a handful, but the field
+takes anything the browser knows, so a display can be set to a language nobody
+thought to list. An unknown tag falls back rather than failing a screen.
+
+Plugins receive the language and the clock format alongside the timezone, so a
+block cannot disagree with the footer. Only text a person reads is translated:
+the timezone arithmetic inside Morrow uses fixed locales deliberately, and
+those sites say so in a comment.
+
+Morrow's own interface, in Admin, is English.
 
 ## Design language
 
