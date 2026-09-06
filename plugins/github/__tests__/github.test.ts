@@ -453,7 +453,8 @@ describe('what the repository field accepts', () => {
     const data = await fetchGitHub({}, withToken);
     expect(data.commitActivity?.total).toBe(0);
     expect(data.commitActivity?.weeks).toEqual([]);
-    expect(data.warnings).toEqual([]);
+    // Only the lines are unavailable; the activity itself came back cleanly.
+    expect(data.warnings.filter((w) => !w.startsWith('Lines:'))).toEqual([]);
     vi.unstubAllGlobals();
   });
 
@@ -559,7 +560,7 @@ describe('what the repository field accepts', () => {
     const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
     expect(data.commitActivity?.total).toBe(4);
     expect(data.commitActivity?.people).toEqual([]);
-    expect(data.warnings).toEqual([]);
+    expect(data.warnings.filter((w) => !w.startsWith('Lines:'))).toEqual([]);
     vi.unstubAllGlobals();
   }, 20_000);
 
@@ -793,6 +794,34 @@ describe('what the repository field accepts', () => {
     expect(ada?.commits).toBeGreaterThan(0);
     expect(ada?.added).toBeUndefined();
     expect(data.warnings.join(' ')).toMatch(/^Lines: .*500/);
+    vi.unstubAllGlobals();
+  }, 20_000);
+
+  it('treats an empty contributor list as not yet computed', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      }
+      // GitHub answers an empty list while it works the statistics out.
+      if (url.includes('/stats/contributors')) return Response.json([]);
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      if (url.includes('/commits')) {
+        return Response.json([
+          {
+            author: { login: 'ada' },
+            commit: { author: { date: '2026-09-05T09:00:00Z' } },
+          },
+        ]);
+      }
+      return Response.json([]);
+    });
+    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    expect(data.commitActivity?.people[0]?.added).toBeUndefined();
+    expect(data.warnings.join(' ')).toMatch(/has not worked out/);
     vi.unstubAllGlobals();
   }, 20_000);
 

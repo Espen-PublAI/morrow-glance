@@ -817,6 +817,15 @@ async function fetchAuthorLines(
       `${API}/repos/${owner}/${name}/stats/contributors`,
       token,
     );
+    // An empty list is GitHub's other way of saying it has not worked this out
+    // yet, alongside the 202 it sends the first time.
+    if (Array.isArray(raw) && raw.length === 0) {
+      return {
+        lines: new Map(),
+        reason:
+          'GitHub has not worked out this repository’s contributor statistics; lines appear once it has.',
+      };
+    }
     return { lines: parseContributorLines(raw, since), reason: null };
   } catch (cause) {
     return { lines: new Map(), reason: messageOf(cause) };
