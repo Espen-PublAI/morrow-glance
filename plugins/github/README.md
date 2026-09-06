@@ -44,10 +44,16 @@ window, from GitHub's weekly contributor statistics. Lines survive squashing.
 Neither number is a measure of effort, and a large deletion is as often good
 housekeeping as it is lost work, but the two together say more than either.
 
-Lines are bucketed by week at source, so the window is whole weeks rather
-than an exact 28 days. On a repository with hundreds of contributors the
-statistics run to megabytes; the block reads what it can and simply omits the
-lines rather than failing.
+Lines come from the commit history through GraphQL, which reports additions
+and deletions on each commit. That needs a token, but it covers an exact
+window and does not wait on the statistics GitHub computes lazily and, for
+some repositories, never finishes. It costs one request per hundred commits.
+
+Without a token, or if that query fails, the weekly contributor statistics are
+used instead. Those bucket by week, so the window becomes whole weeks, and on
+a repository with hundreds of contributors they run to megabytes; the block
+then reads what it can and says why the lines are missing rather than leaving
+a blank column.
 
 ## Reading the graph
 

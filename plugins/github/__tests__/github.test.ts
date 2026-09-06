@@ -11,6 +11,7 @@ import {
   parseCommitActivity,
   parseContributors,
   parseOwner,
+  foldAuthorStats,
   describeTokenProblem,
   visibleWeeks,
   isGitHubData,
@@ -722,6 +723,8 @@ describe('what the repository field accepts', () => {
       if (url.includes('/orgs/Aptide-ai/repos')) {
         return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
       }
+      // No commit history available, so the weekly statistics are used.
+      if (url.endsWith('/graphql')) return new Response('{}', { status: 500 });
       if (url.includes('/stats/contributors')) {
         return Response.json([
           {
@@ -769,6 +772,8 @@ describe('what the repository field accepts', () => {
       if (url.includes('/orgs/Aptide-ai/repos')) {
         return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
       }
+      // No commit history available, so the weekly statistics are used.
+      if (url.endsWith('/graphql')) return new Response('{}', { status: 500 });
       if (url.includes('/stats/contributors')) {
         return new Response('{}', { status: 500 });
       }
@@ -802,6 +807,8 @@ describe('what the repository field accepts', () => {
       if (url.includes('/orgs/Aptide-ai/repos')) {
         return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
       }
+      // No commit history available, so the weekly statistics are used.
+      if (url.endsWith('/graphql')) return new Response('{}', { status: 500 });
       // GitHub answers an empty list while it works the statistics out.
       if (url.includes('/stats/contributors')) return Response.json([]);
       if (url.includes('/stats/commit_activity')) {
@@ -822,6 +829,108 @@ describe('what the repository field accepts', () => {
     const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
     expect(data.commitActivity?.people[0]?.added).toBeUndefined();
     expect(data.warnings.join(' ')).toMatch(/has not worked out/);
+    vi.unstubAllGlobals();
+  }, 20_000);
+
+  it('reads lines and authors from the commit history', async () => {
+    const page = (nodes: unknown[], hasNextPage = false, endCursor = 'c1') => ({
+      data: {
+        repository: {
+          defaultBranchRef: {
+            target: {
+              history: { pageInfo: { hasNextPage, endCursor }, nodes },
+            },
+          },
+        },
+      },
+    });
+    const totals = new Map();
+    const first = foldAuthorStats(
+      page(
+        [
+          { additions: 500, deletions: 40, author: { user: { login: 'ada' } } },
+          { additions: 120, deletions: 8, author: { user: { login: 'sam' } } },
+          // No linked account: the name on the commit is used instead.
+          { additions: 30, deletions: 1, author: { name: 'Kim' } },
+        ],
+        true,
+        'cursor-2',
+      ),
+      totals,
+    );
+    expect(first).toEqual({ hasNextPage: true, cursor: 'cursor-2' });
+    foldAuthorStats(
+      page([
+        { additions: 70, deletions: 5, author: { user: { login: 'ada' } } },
+      ]),
+      totals,
+    );
+    // Two pages folded together, commits counted alongside the lines.
+    expect(totals.get('ada')).toEqual({ added: 570, removed: 45, commits: 2 });
+    expect(totals.get('sam')).toEqual({ added: 120, removed: 8, commits: 1 });
+    expect(totals.get('Kim')).toEqual({ added: 30, removed: 1, commits: 1 });
+  });
+
+  it('surfaces a GraphQL error rather than reporting nothing', () => {
+    expect(() =>
+      foldAuthorStats({ errors: [{ message: 'Bad credentials' }] }, new Map()),
+    ).toThrow(/Bad credentials/);
+  });
+
+  it('prefers the commit history over the weekly statistics', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      calls.push(url);
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      }
+      if (url.endsWith('/graphql')) {
+        const body = typeof init?.body === 'string' ? init.body : '';
+        if (!body.includes('history')) return Response.json({ data: {} });
+        return Response.json({
+          data: {
+            repository: {
+              defaultBranchRef: {
+                target: {
+                  history: {
+                    pageInfo: { hasNextPage: false, endCursor: null },
+                    nodes: [
+                      {
+                        additions: 84_008,
+                        deletions: 5059,
+                        author: { user: { login: 'espen' } },
+                      },
+                    ],
+                  },
+                },
+              },
+            },
+          },
+        });
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      if (url.includes('/commits')) {
+        return Response.json([
+          {
+            author: { login: 'espen' },
+            commit: { author: { date: '2026-09-05T09:00:00Z' } },
+          },
+        ]);
+      }
+      return Response.json([]);
+    });
+    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    const espen = data.commitActivity?.people[0];
+    expect(espen?.added).toBe(84_008);
+    expect(espen?.removed).toBe(5059);
+    // The statistics endpoint that never computes is not consulted at all.
+    expect(calls.some((url) => url.includes('/stats/contributors'))).toBe(
+      false,
+    );
     vi.unstubAllGlobals();
   }, 20_000);
 

@@ -1046,11 +1046,13 @@ async function fetchOwnerActivity(
   const lineFailures: string[] = [];
   await Promise.all(
     usable.map(async (result) => {
-      const { lines: found, reason } = await fetchAuthorLines(
-        result.ref,
-        token,
-        peopleSince,
-      );
+      const { lines: found, reason } = token
+        ? await fetchAuthorStats(result.ref, token, peopleSince).then(
+            (lines) => ({ lines, reason: null as string | null }),
+            // The weekly statistics are the fallback, for whatever they hold.
+            () => fetchAuthorLines(result.ref, token, peopleSince),
+          )
+        : await fetchAuthorLines(result.ref, token, peopleSince);
       if (reason) lineFailures.push(reason);
       for (const [login, lines] of found) {
         const running = lineTotals.get(login) ?? {
@@ -1166,6 +1168,90 @@ async function fetchContributors(
     ? parseLastPage(countResponse.headers.get('link'))
     : null;
   return parseContributors(await readJson(listResponse), total);
+}
+
+/**
+ * Commits with their line counts, straight from the commit history. This is
+ * the only source of per-person lines that does not depend on the statistics
+ * GitHub computes lazily and, for some repositories, never finishes. It needs
+ * a token, because GraphQL refuses unauthenticated requests.
+ */
+const AUTHOR_STATS_QUERY = `query($owner: String!, $name: String!, $since: GitTimestamp!, $cursor: String) {
+  repository(owner: $owner, name: $name) {
+    defaultBranchRef {
+      target {
+        ... on Commit {
+          history(since: $since, first: 100, after: $cursor) {
+            pageInfo { hasNextPage endCursor }
+            nodes {
+              additions
+              deletions
+              author { user { login } name }
+            }
+          }
+        }
+      }
+    }
+  }
+}`;
+
+/** Fold one page of history into the running totals. */
+export function foldAuthorStats(
+  json: unknown,
+  totals: Map<string, AuthorLines>,
+): { hasNextPage: boolean; cursor: string | null } {
+  const body = rec(json);
+  const errors = body.errors;
+  if (Array.isArray(errors) && errors.length > 0) {
+    throw new Error(str(rec(errors[0]).message) ?? 'GitHub refused the query.');
+  }
+  const history = rec(
+    rec(rec(rec(rec(body.data).repository).defaultBranchRef).target).history,
+  );
+  const nodes = Array.isArray(history.nodes) ? history.nodes : [];
+  for (const raw of nodes) {
+    const node = rec(raw);
+    const author = rec(node.author);
+    // Prefer the GitHub account, and fall back to the name on the commit so a
+    // contributor without a linked account is still counted.
+    const login = str(rec(author.user).login) ?? str(author.name);
+    if (!login) continue;
+    const running = totals.get(login) ?? { added: 0, removed: 0, commits: 0 };
+    totals.set(login, {
+      added: running.added + num(node.additions),
+      removed: running.removed + num(node.deletions),
+      commits: running.commits + 1,
+    });
+  }
+  const page = rec(history.pageInfo);
+  return {
+    hasNextPage: page.hasNextPage === true,
+    cursor: str(page.endCursor),
+  };
+}
+
+async function fetchAuthorStats(
+  { owner, name }: RepoRef,
+  token: string,
+  since: Date,
+): Promise<Map<string, AuthorLines>> {
+  const totals = new Map<string, AuthorLines>();
+  let cursor: string | null = null;
+  for (let page = 0; page < FALLBACK_PAGES; page += 1) {
+    const response = await request(`${API}/graphql`, token, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        query: AUTHOR_STATS_QUERY,
+        variables: { owner, name, since: since.toISOString(), cursor },
+      }),
+    });
+    if (!response.ok) throw new Error(`GitHub answered ${response.status}.`);
+    const next = foldAuthorStats(await readJson(response), totals);
+    if (!next.hasNextPage || !next.cursor) break;
+    cursor = next.cursor;
+  }
+  return totals;
 }
 
 const CONTRIBUTIONS_QUERY = `query($login: String!) {
