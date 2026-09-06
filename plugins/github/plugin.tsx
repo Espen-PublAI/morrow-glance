@@ -250,8 +250,12 @@ function RepoView(props: PluginViewProps) {
 }
 
 function CommitsView(props: PluginViewProps) {
-  const { repo: repoSetting } = readLabels(props);
-  const result = ready(props, repoSetting || 'Repository');
+  const { repo: repoSetting, label: custom } = readLabels(props);
+  const scope =
+    props.data && isGitHubData(props.data.data)
+      ? props.data.data.commitActivity?.scope
+      : '';
+  const result = ready(props, custom || repoSetting || scope || 'Repository');
   if ('state' in result) return result.state;
   const { data, label } = result;
   const activity = data.commitActivity;
@@ -357,13 +361,13 @@ export const plugin = definePlugin({
         id: 'repo',
         label: 'Repository or organisation',
         type: 'text',
-        placeholder: 'owner/name, or an organisation name for all of it',
+        placeholder: 'Blank with a token: everything it can read',
       },
       {
         id: 'user',
         label: 'GitHub username',
         type: 'text',
-        placeholder: 'For the two person views',
+        placeholder: 'Blank with a token: whoever the token belongs to',
       },
       {
         id: 'token',

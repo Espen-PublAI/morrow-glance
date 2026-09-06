@@ -17,11 +17,17 @@ everybody's commits, not just yours, and needs no token.
 
 ## Settings
 
-- **Repository or organisation** for the two repository views. Either
+With a token, **both settings are optional**. A token already says who it
+belongs to and which repositories it can read, so leaving them blank gives you
+the account behind the token and everything it can see. Fill them in only to
+narrow that down.
+
+- **Repository or organisation**, for the two repository views. Either
   `owner/name` for one repository, or a bare `owner` for everything that owner
-  has, which is what you want for a team or a company. A pasted GitHub URL
-  works for both.
-- **GitHub username** for the two person views.
+  has. A pasted GitHub URL works for both. Blank with a token means every
+  repository the token can read, labelled by the owner when they share one.
+- **GitHub username**, for the two person views. Blank with a token means
+  whoever the token belongs to.
 - **Personal access token**, stored as a per-block secret and never sent to a
   Player. Alternatively set `MORROW_GITHUB_TOKEN` on Morrow Server for every
   block at once.
@@ -44,6 +50,11 @@ the budget with it, so a token is effectively required there.
 Create a fine-grained token at github.com/settings/tokens with no repository
 access if you only want public data. Grant read access to the repositories
 you want private activity for. Nothing in this plugin writes.
+
+## The short version
+
+Paste a token, choose **Repository: commit activity**, and leave everything
+else blank. That covers every repository the token can read.
 
 ## A whole organisation
 

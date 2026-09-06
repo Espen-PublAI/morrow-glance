@@ -75,6 +75,8 @@ export interface CommitActivity {
   repos: RepoCommits[];
   /** Repositories whose statistics GitHub had not finished computing. */
   pending: number;
+  /** What this covers: one repository, an owner, or everything a token reads. */
+  scope: string;
 }
 
 export interface TopContributor {
@@ -306,6 +308,7 @@ export function parseCommitActivity(
     to: dates[dates.length - 1] ?? '',
     repos: [],
     pending: 0,
+    scope: '',
   };
 }
 
@@ -567,6 +570,16 @@ async function fetchCommitActivity(
   );
 }
 
+/**
+ * The account a token belongs to. With a token there is no need to type a
+ * username: GitHub already knows whose it is.
+ */
+async function fetchViewer(token: string): Promise<string | null> {
+  const response = await request(`${API}/user`, token);
+  if (!response.ok) return null;
+  return str(rec(await readJson(response)).login);
+}
+
 /** How many of an owner's repositories to aggregate, busiest pushed first. */
 const OWNER_REPO_LIMIT = 10;
 
@@ -652,16 +665,52 @@ async function tokenReach(token: string): Promise<TokenReach> {
 }
 
 /**
+ * Everything the token can read, most recently pushed first. This is the
+ * default when no repository or owner is given: a token already says what it
+ * has access to, so there is nothing to type.
+ */
+async function listAccessibleRepos(token: string): Promise<RepoRef[]> {
+  const response = await request(
+    `${API}/user/repos?affiliation=owner,organization_member&sort=pushed&per_page=${OWNER_REPO_LIMIT}`,
+    token,
+  );
+  if (!response.ok) throw new Error(`GitHub answered ${response.status}.`);
+  const refs = (await readJson(response)) as unknown;
+  const parsed = Array.isArray(refs)
+    ? refs
+        .map((raw) => str(rec(raw).full_name))
+        .filter((full): full is string => full !== null)
+        .map((full) => parseRepoName(full))
+        .filter((ref): ref is RepoRef => ref !== null)
+    : [];
+  if (parsed.length === 0) {
+    throw new Error(
+      describeTokenProblem('this token', await tokenReach(token)),
+    );
+  }
+  return parsed;
+}
+
+/**
  * Every repository of one owner, added together. This is the view for "how is
  * our work going" rather than "how is this one repository going", so it costs
  * one request to list the repositories and one per repository after that.
  */
 async function fetchOwnerActivity(
-  owner: string,
+  owner: string | null,
   token: string | undefined,
   now: Date,
 ): Promise<CommitActivity> {
-  const repos = await listOwnerRepos(owner, token);
+  const repos =
+    owner === null
+      ? await listAccessibleRepos(token as string)
+      : await listOwnerRepos(owner, token);
+  const owners = new Set(repos.map((ref) => ref.owner));
+  const scope =
+    owner ??
+    (owners.size === 1
+      ? ([...owners][0] ?? '')
+      : `${repos.length} repositories`);
   const results = await Promise.all(
     repos.map(async (ref) => {
       try {
@@ -697,6 +746,7 @@ async function fetchOwnerActivity(
     ...merged,
     repos: breakdown,
     pending: results.length - usable.length,
+    scope,
   };
 }
 
@@ -781,17 +831,18 @@ export async function fetchGitHub(
       `Repository: "${rawRepo}" is not a repository as owner/name, nor an account or organisation name.`,
     );
   }
-  if (!user && !repoName && !owner) {
-    throw new Error(
-      fieldWarnings[0]?.replace(/^\w+: /, '') ??
-        'Enter a repository as owner/name, an account or organisation name, or a GitHub username.',
-    );
-  }
   const token =
     context.secrets.token || context.env.MORROW_GITHUB_TOKEN || undefined;
 
+  // With a token neither field is needed: GitHub knows whose token it is and
+  // which repositories it can read.
+  const viewer = !user && token ? await fetchViewer(token) : null;
+  const person = user ?? viewer;
+  /** No repository or owner named, but a token: cover all it can read. */
+  const wholeToken = !rawRepo && Boolean(token);
+
   const data: GitHubData = {
-    user,
+    user: person,
     repo: null,
     events: null,
     contributions: null,
@@ -809,22 +860,29 @@ export async function fetchGitHub(
     }
   };
 
+  if (!person && !repoName && !owner && !wholeToken) {
+    throw new Error(
+      fieldWarnings[0]?.replace(/^\w+: /, '') ??
+        'Add a token, or enter a repository as owner/name, an account or organisation name, or a GitHub username.',
+    );
+  }
+
   const tasks: Promise<void>[] = [];
-  if (user) {
+  if (person) {
     tasks.push(
       attempt('Activity', async () => {
-        data.events = await fetchEvents(user, token);
+        data.events = await fetchEvents(person, token);
       }),
     );
     if (token) {
       tasks.push(
         attempt('Contributions', async () => {
-          data.contributions = await fetchContributions(user, token);
+          data.contributions = await fetchContributions(person, token);
         }),
       );
     }
   }
-  if (owner) {
+  if (owner || wholeToken) {
     tasks.push(
       attempt('Commit activity', async () => {
         data.commitActivity = await fetchOwnerActivity(

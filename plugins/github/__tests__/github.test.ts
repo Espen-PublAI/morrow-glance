@@ -278,13 +278,137 @@ describe('what the repository field accepts', () => {
     vi.unstubAllGlobals();
   });
 
+  it('needs no settings at all once there is a token', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      calls.push(url);
+      if (url.endsWith('/user'))
+        return Response.json({ login: 'Espen-PublAI' });
+      if (url.includes('/user/repos?affiliation')) {
+        return Response.json([
+          { full_name: 'Aptide-ai/api' },
+          { full_name: 'Aptide-ai/web' },
+        ]);
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      if (url.includes('/events')) return Response.json(eventsFixture);
+      if (url.includes('/graphql')) return Response.json(contributionsFixture);
+      throw new Error(`unexpected ${url}`);
+    });
+    // No username, no repository: only a token.
+    const data = await fetchGitHub({}, withToken);
+    expect(data.user).toBe('Espen-PublAI');
+    expect(data.events).not.toBeNull();
+    expect(data.commitActivity?.total).toBe(2);
+    // Every repository the token reads, and all of one owner, so it is named.
+    expect(data.commitActivity?.scope).toBe('Aptide-ai');
+    expect(data.commitActivity?.repos.map((repo) => repo.name).sort()).toEqual([
+      'api',
+      'web',
+    ]);
+    vi.unstubAllGlobals();
+  });
+
+  it('describes a mixed set of owners by count rather than by name', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.endsWith('/user')) return Response.json({ login: 'espen' });
+      if (url.includes('/user/repos?affiliation')) {
+        return Response.json([
+          { full_name: 'Aptide-ai/api' },
+          { full_name: 'espen/glance' },
+        ]);
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      return Response.json([]);
+    });
+    const data = await fetchGitHub({}, withToken);
+    expect(data.commitActivity?.scope).toBe('2 repositories');
+    vi.unstubAllGlobals();
+  });
+
+  it('lets a typed setting win over what the token would have chosen', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      calls.push(url);
+      if (url.includes('/orgs/github/repos')) {
+        return Response.json([{ full_name: 'github/docs' }]);
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [4, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      return Response.json(eventsFixture);
+    });
+    const data = await fetchGitHub(
+      { user: 'octocat', repo: 'github' },
+      withToken,
+    );
+    expect(data.user).toBe('octocat');
+    // The token's own identity was never asked for.
+    expect(calls.some((url) => url.endsWith('/user'))).toBe(false);
+    expect(data.commitActivity?.scope).toBe('github');
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps a named repository to itself rather than sweeping up the token', async () => {
+    const calls: string[] = [];
+    vi.stubGlobal('fetch', async (url: string) => {
+      calls.push(url);
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [7, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      if (url.includes('/contributors'))
+        return Response.json(contributorsFixture);
+      if (url.endsWith('/user')) return Response.json({ login: 'espen' });
+      return Response.json(repoFixture);
+    });
+    const data = await fetchGitHub({ repo: 'github/docs' }, withToken);
+    expect(data.commitActivity?.total).toBe(7);
+    // One repository, so no breakdown and no sweep of everything readable.
+    expect(data.commitActivity?.repos).toEqual([]);
+    expect(calls.some((url) => url.includes('/user/repos?affiliation'))).toBe(
+      false,
+    );
+    vi.unstubAllGlobals();
+  });
+
+  it('names a single owner but counts a mixed set', async () => {
+    const scopeOf = async (fullNames: string[]) => {
+      vi.stubGlobal('fetch', async (url: string) => {
+        if (url.endsWith('/user')) return Response.json({ login: 'espen' });
+        if (url.includes('/user/repos?affiliation')) {
+          return Response.json(fullNames.map((full_name) => ({ full_name })));
+        }
+        return Response.json([
+          { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+        ]);
+      });
+      const data = await fetchGitHub({}, withToken);
+      vi.unstubAllGlobals();
+      return data.commitActivity?.scope;
+    };
+    expect(await scopeOf(['Aptide-ai/api', 'Aptide-ai/web'])).toBe('Aptide-ai');
+    expect(await scopeOf(['Aptide-ai/api', 'espen/glance'])).toBe(
+      '2 repositories',
+    );
+  });
+
   it('fails only when no field is usable', async () => {
     await expect(fetchGitHub({ repo: 'a/b/c' }, context)).rejects.toThrow(
       /not a repository as owner\/name/,
     );
-    await expect(fetchGitHub({}, context)).rejects.toThrow(
-      /Enter a repository/,
-    );
+    await expect(fetchGitHub({}, context)).rejects.toThrow(/Add a token/);
     await expect(fetchGitHub({ user: 'bad--name' }, context)).rejects.toThrow(
       /not a valid GitHub username/,
     );

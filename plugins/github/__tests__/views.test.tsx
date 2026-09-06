@@ -144,6 +144,7 @@ describe('repository commit activity', () => {
       to: '2026-09-05',
       repos: [],
       pending: 0,
+      scope: 'Espen-PublAI/morrow-glance',
     };
     const { container } = show(
       'commits',
