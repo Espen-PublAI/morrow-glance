@@ -98,23 +98,26 @@
   opacity: 1;
 }
 
-/* People: a name and a number per row, set like the weather forecast rows. */
+/*
+ * People: a name, a bar for comparison, then the figures in aligned columns.
+ * The bar is what makes a board readable from across a room; the numbers are
+ * for when someone walks up to it.
+ */
 .github-people {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
   align-content: center;
-  gap: clamp(2px, 1.6cqmin, 18px);
+  gap: clamp(4px, 2.6cqmin, 28px);
   overflow: hidden;
-  max-width: 40em;
 }
 
 .github-people li {
   display: grid;
-  grid-template-columns: 1fr auto auto;
-  align-items: baseline;
-  gap: var(--space-gap);
-  font-size: clamp(11px, min(7cqmin, 4.4cqi), 76px);
+  grid-template-columns: minmax(0, 13em) minmax(2em, 1fr) auto auto;
+  align-items: center;
+  gap: clamp(6px, 3cqmin, 32px);
+  font-size: clamp(11px, min(7.5cqmin, 4cqi), 64px);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -125,14 +128,39 @@
   text-overflow: ellipsis;
 }
 
-.github-people span {
+/* One bar per person, scaled against the busiest. */
+.github-bar {
+  display: block;
+  height: 0.34em;
+  background: color-mix(in srgb, var(--ink) 14%, transparent);
+}
+
+.github-bar i {
+  display: block;
+  height: 100%;
+  background: var(--ink);
+  opacity: 0.85;
+}
+
+.github-count {
+  min-width: 2.6ch;
+  text-align: right;
+}
+
+/* Lines, quieter and in their own aligned columns so they cannot bunch. */
+.github-lines {
+  display: grid;
+  grid-template-columns: 5.2ch 5.2ch;
+  gap: 0.6ch;
+  font-size: 0.66em;
   color: var(--faint);
 }
 
-/* Lines moved, quieter than the commit count beside it. */
-.github-people .github-lines {
-  font-size: 0.72em;
-  opacity: 0.8;
+.github-lines b,
+.github-lines em {
+  font-weight: var(--weight-regular);
+  font-style: normal;
+  text-align: right;
 }
 
 /* Activity: one sentence per row, sized so eight rows fill the block. */

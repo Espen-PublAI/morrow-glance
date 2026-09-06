@@ -445,6 +445,9 @@ function PeopleView(props: PluginViewProps) {
     return <State label={label} text="No contributors yet" />;
   }
   const days = activity?.peopleDays ?? 0;
+  const shown = byline.slice(0, 8);
+  // Bars are scaled against the busiest person shown, not an absolute figure.
+  const busiest = Math.max(1, ...shown.map((entry) => entry.commits));
   return (
     <Frame
       label={label}
@@ -455,18 +458,27 @@ function PeopleView(props: PluginViewProps) {
       }
     >
       <ol className="github-people">
-        {byline.slice(0, 8).map((entry) => (
+        {shown.map((entry) => (
           <li key={entry.name}>
             <strong>{entry.name}</strong>
-            {entry.added !== undefined && (
-              // Lines say more than a commit count when a repository squashes
-              // every pull request into one commit.
-              <span className="github-lines">
-                +{compactNumber(entry.added)} &minus;
-                {compactNumber(entry.removed ?? 0)}
-              </span>
-            )}
-            <span>{compactNumber(entry.commits)}</span>
+            {/* A bar carries the comparison across a room; the numbers are for
+                someone standing at the board. */}
+            <span className="github-bar" aria-hidden="true">
+              <i
+                style={{
+                  width: `${Math.round((entry.commits / busiest) * 100)}%`,
+                }}
+              />
+            </span>
+            <span className="github-count">{compactNumber(entry.commits)}</span>
+            <span className="github-lines">
+              {entry.added !== undefined && (
+                <>
+                  <b>+{compactNumber(entry.added)}</b>
+                  <em>&minus;{compactNumber(entry.removed ?? 0)}</em>
+                </>
+              )}
+            </span>
           </li>
         ))}
       </ol>

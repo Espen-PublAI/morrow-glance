@@ -214,6 +214,29 @@ describe('the repository views, one thing each', () => {
     expect(screen.getByText('63')).toBeTruthy();
   });
 
+  it('draws a bar per person, scaled against the busiest shown', () => {
+    const { container } = show(
+      'people',
+      stored({
+        commitActivity: {
+          ...full,
+          people: [
+            { login: 'ada', commits: 200, added: 1000, removed: 100 },
+            { login: 'sam', commits: 50, added: 400, removed: 20 },
+            { login: 'kim', commits: 0, added: 0, removed: 0 },
+          ],
+        },
+      }),
+      repoSettings,
+    );
+    const bars = [...container.querySelectorAll('.github-bar i')].map(
+      (bar) => (bar as HTMLElement).style.width,
+    );
+    // The busiest fills the bar and the rest are relative to it, which is what
+    // makes the comparison readable from across a room.
+    expect(bars).toEqual(['100%', '25%', '0%']);
+  });
+
   it('shows the people alone, one per row', () => {
     const { container } = show(
       'people',
