@@ -359,29 +359,30 @@ export const plugin = definePlugin({
       { id: 'activity', name: 'Person: activity' },
     ],
     settings: [
-      {
-        id: 'repo',
-        label: 'Repository or organisation',
-        type: 'text',
-        placeholder: 'Blank with a token: everything it can read',
-      },
-      {
-        id: 'user',
-        label: 'GitHub username',
-        type: 'text',
-        placeholder: 'Blank with a token: whoever the token belongs to',
-      },
+      // The token comes first because with one, nothing else is needed.
       {
         id: 'token',
         label: 'Personal access token',
         type: 'secret',
-        placeholder: 'Needed for contributions; recommended otherwise',
+        placeholder: 'Paste a token, then press Save beside this field',
+      },
+      {
+        id: 'repo',
+        label: 'Limit to a repository or organisation',
+        type: 'text',
+        placeholder: 'Optional \u00b7 owner/name, or an organisation',
+      },
+      {
+        id: 'user',
+        label: 'Limit to one person',
+        type: 'text',
+        placeholder: 'Optional \u00b7 a GitHub username',
       },
       {
         id: 'label',
         label: 'Label',
         type: 'text',
-        placeholder: 'Defaults to the username or repository',
+        placeholder: 'Optional \u00b7 defaults to what is shown',
       },
     ],
     defaultSize: { span: 6, rowSpan: 2 },

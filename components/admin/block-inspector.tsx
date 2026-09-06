@@ -203,9 +203,11 @@ export function BlockInspector({
         <section className="inspector-section">
           <span className="inspector-label">Data</span>
           <p className="data-status">
-            {blockData?.fetchedAt
-              ? `Fetched by Morrow Server · last data ${new Date(blockData.fetchedAt).toLocaleString()}`
-              : 'Fetched by Morrow Server with its own credentials. Save, then wait for the first fetch.'}
+            {blockData?.error
+              ? `Morrow Server last tried ${blockData.fetchedAt ? new Date(blockData.fetchedAt).toLocaleString() : 'just now'} and failed:`
+              : blockData?.fetchedAt
+                ? `Fetched by Morrow Server · last data ${new Date(blockData.fetchedAt).toLocaleString()}`
+                : 'Fetched by Morrow Server with its own credentials. Save, then wait for the first fetch.'}
             {blockData?.error && (
               <span className="data-status-error">{blockData.error}</span>
             )}
