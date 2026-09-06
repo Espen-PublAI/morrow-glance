@@ -45,7 +45,24 @@ function readLabels({ settings }: PluginViewProps) {
 /** Sunday first, matching how the weeks are laid out. */
 const WEEKDAYS = ['', 'Mon', '', 'Wed', '', 'Fri', ''] as const;
 
-function DotGrid({ weeks }: { weeks: number[][] }) {
+/** A short month name above the first column that falls in each month. */
+function monthLabels(count: number, from: string | undefined): string[] {
+  const start = from ? Date.parse(`${from}T00:00:00Z`) : Number.NaN;
+  if (!Number.isFinite(start)) return Array.from({ length: count }, () => '');
+  let previous = '';
+  return Array.from({ length: count }, (_, week) => {
+    const date = new Date(start + week * 7 * 86_400_000);
+    const name = date.toLocaleDateString('en-GB', {
+      month: 'short',
+      timeZone: 'UTC',
+    });
+    if (name === previous) return '';
+    previous = name;
+    return name;
+  });
+}
+
+function DotGrid({ weeks, from }: { weeks: number[][]; from?: string }) {
   const max = Math.max(0, ...weeks.flat());
   // A CSS grid rather than an SVG: the cells take their size from the block, so
   // the dots fill whatever shape the block is instead of sitting in a band of
@@ -53,7 +70,14 @@ function DotGrid({ weeks }: { weeks: number[][] }) {
   const style = { '--weeks': weeks.length } as CSSProperties;
   return (
     <div className="github-graph">
-      {/* Which way the grid runs is not obvious from dots alone. */}
+      {/* Which way the grid runs is not obvious from dots alone: months across
+          the top, weekdays down the side. */}
+      <span />
+      <ol className="github-months" style={style} aria-hidden="true">
+        {monthLabels(weeks.length, from).map((name, index) => (
+          <li key={index}>{name}</li>
+        ))}
+      </ol>
       <ol className="github-weekdays" aria-hidden="true">
         {WEEKDAYS.map((day, index) => (
           <li key={index}>{day}</li>
@@ -368,19 +392,23 @@ function CommitsView(props: PluginViewProps) {
             )}
           </ol>
         )}
-      {weeks.length > 0 && parts.graph && <DotGrid weeks={weeks} />}
-      {/* Who has been committing answers "how is the team doing" better than
-          which repository they committed to. Repositories are the fallback. */}
-      {byline.length > 0 && parts.people && (
-        <ol className="github-top">
-          {byline.slice(0, 5).map((entry) => (
-            <li key={entry.name}>
-              <strong>{entry.name}</strong>
-              <span>{compactNumber(entry.commits)}</span>
-            </li>
-          ))}
-        </ol>
-      )}
+      <div className="github-body">
+        {weeks.length > 0 && parts.graph && (
+          <DotGrid weeks={weeks} from={activity?.from} />
+        )}
+        {/* Who has been committing answers "how is the team doing" better than
+            which repository they committed to. Repositories are the fallback. */}
+        {byline.length > 0 && parts.people && (
+          <ol className="github-top">
+            {byline.slice(0, 5).map((entry) => (
+              <li key={entry.name}>
+                <strong>{entry.name}</strong>
+                <span>{compactNumber(entry.commits)}</span>
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
     </Frame>
   );
 }

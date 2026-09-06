@@ -21,9 +21,11 @@ The **Repository: commit activity** view has three parts, each of which can be
 switched off in the block settings: the figures, the graph, and the people. So
 one block can be the graph alone and another the figures and the names.
 
-In the graph, each column is a week, oldest on the left, and each row is a day
-of the week, Sunday at the top with Monday, Wednesday and Friday labelled. A
-bigger, more solid dot is a busier day, scaled against the busiest day shown.
+In the graph, **each column is one week**, oldest on the left, with the month
+named above the first column that falls in it. **Each row is a day of the
+week**, Sunday at the top, with Monday, Wednesday and Friday labelled down the
+side. Nothing in it is a time of day. A bigger, more solid dot is a busier
+day, scaled against the busiest day shown.
 
 ## Settings
 
