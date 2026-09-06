@@ -17,3 +17,9 @@ two-hour steps), `week` (seven days with high, low, and rain). Default size
 Data: [MET Norway](https://api.met.no/), CC BY 4.0, credited here and in the
 project README rather than on screen, so a glance stays uncluttered. Requests
 carry an identifying User-Agent set in `db/block-data.ts`.
+
+## Units
+
+`metric` by default, or `imperial` for degrees Fahrenheit and inches. MET
+Norway reports Celsius and millimetres; the conversion happens in the block,
+so two blocks on one board can differ.

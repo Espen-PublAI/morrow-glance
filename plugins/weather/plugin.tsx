@@ -12,6 +12,8 @@ import {
 import { WeatherIcon } from './icons';
 import { current, dailyForecast, upcomingHours } from './met';
 
+import { degrees, rainfall, readUnits } from './units';
+
 import './plugin.css';
 
 /**
@@ -44,11 +46,14 @@ function usePlace({ settings, timeZone: displayZone }: PluginViewProps) {
   const hasPlace = Boolean(
     parseCoordinates(readStringSetting(settings, 'coordinates')),
   );
-  return { zone, city, label, hasPlace };
-}
-
-function degrees(value: number): string {
-  return Number.isFinite(value) ? `${Math.round(value)}°` : '–';
+  const units = readUnits(settings);
+  return {
+    units,
+    zone,
+    city,
+    label,
+    hasPlace,
+  };
 }
 
 function hourLabel(time: string, zone: string): string {
@@ -100,7 +105,7 @@ function Empty({
 
 function NowView(props: PluginViewProps) {
   const { now, data } = props;
-  const { label, hasPlace } = usePlace(props);
+  const { label, hasPlace, units } = usePlace(props);
   const conditions = data ? current(data.data, now) : undefined;
   if (!conditions)
     return <Empty label={label} hasPlace={hasPlace} error={data?.error} />;
@@ -113,12 +118,12 @@ function NowView(props: PluginViewProps) {
           code={conditions.symbol}
           className="weather-icon is-large"
         />
-        <strong>{degrees(conditions.temperature)}</strong>
+        <strong>{degrees(conditions.temperature, units)}</strong>
       </div>
       <span className="plugin-meta">
         {conditions.windSpeed.toFixed(0)} m/s
-        {conditions.precipitation > 0
-          ? ` · ${conditions.precipitation.toFixed(1)} mm`
+        {rainfall(conditions.precipitation, units)
+          ? ` · ${rainfall(conditions.precipitation, units)}`
           : ''}
       </span>
     </div>
@@ -127,7 +132,7 @@ function NowView(props: PluginViewProps) {
 
 function TodayView(props: PluginViewProps) {
   const { now, data } = props;
-  const { zone, label, hasPlace } = usePlace(props);
+  const { zone, label, hasPlace, units } = usePlace(props);
   const hours = data ? upcomingHours(data.data, now, 6, 2) : [];
   if (hours.length === 0)
     return <Empty label={label} hasPlace={hasPlace} error={data?.error} />;
@@ -140,7 +145,7 @@ function TodayView(props: PluginViewProps) {
           <li key={hour.time}>
             <span className="weather-hour">{hourLabel(hour.time, zone)}</span>
             <WeatherIcon code={hour.symbol} className="weather-icon" />
-            <strong>{degrees(hour.temperature)}</strong>
+            <strong>{degrees(hour.temperature, units)}</strong>
           </li>
         ))}
       </ol>
@@ -150,7 +155,7 @@ function TodayView(props: PluginViewProps) {
 
 function WeekView(props: PluginViewProps) {
   const { data } = props;
-  const { zone, label, hasPlace } = usePlace(props);
+  const { zone, label, hasPlace, units } = usePlace(props);
   const days = data ? dailyForecast(data.data, zone, 7) : [];
   if (days.length === 0)
     return <Empty label={label} hasPlace={hasPlace} error={data?.error} />;
@@ -166,13 +171,13 @@ function WeekView(props: PluginViewProps) {
             </span>
             <WeatherIcon code={day.symbol} className="weather-icon" />
             <span className="weather-rain">
-              {day.precipitation > 0
-                ? `${day.precipitation.toFixed(1)} mm`
+              {rainfall(day.precipitation, units)
+                ? rainfall(day.precipitation, units)
                 : ''}
             </span>
             <span className="weather-range">
-              <strong>{degrees(day.high)}</strong>
-              <span>{degrees(day.low)}</span>
+              <strong>{degrees(day.high, units)}</strong>
+              <span>{degrees(day.low, units)}</span>
             </span>
           </li>
         ))}
@@ -200,6 +205,12 @@ export const plugin = definePlugin({
         label: 'City',
         type: 'city',
         placeholder: 'Search for a city',
+      },
+      {
+        id: 'units',
+        label: 'Units',
+        type: 'text',
+        placeholder: 'metric \u00b7 or imperial for \u00b0F and inches',
       },
       {
         id: 'label',
