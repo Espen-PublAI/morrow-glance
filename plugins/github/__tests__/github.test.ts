@@ -110,8 +110,9 @@ describe('what the repository field accepts', () => {
       { name: 'api', commits: 1 },
     ]);
     expect(data.commitActivity?.pending).toBe(0);
-    // Stars and contributors are per-repository, so they are not fetched.
-    expect(calls.some((url) => url.includes('/contributors'))).toBe(false);
+    // Stars and the contributor list are per-repository, so they are not
+    // fetched; the weekly statistics are, since they carry lines per author.
+    expect(calls.some((url) => url.includes('/contributors?'))).toBe(false);
     vi.unstubAllGlobals();
   });
 
@@ -709,6 +710,89 @@ describe('what the repository field accepts', () => {
     // An empty repository answers 409, which is a real zero.
     expect(await one(new Response('{}', { status: 409 }))).toBe(0);
   }, 30_000);
+
+  it('counts lines moved per person from the weekly statistics', async () => {
+    const now = new Date('2026-09-06T12:00:00Z');
+    const week = (weeksAgo: number) =>
+      Math.floor(
+        (Date.UTC(2026, 8, 6) - weeksAgo * 7 * 86_400_000) / 1000 / 86_400,
+      ) * 86_400;
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      }
+      if (url.includes('/stats/contributors')) {
+        return Response.json([
+          {
+            author: { login: 'ada' },
+            weeks: [
+              { w: week(1), a: 1200, d: 300, c: 4 },
+              { w: week(2), a: 800, d: 100, c: 3 },
+              // Outside the 28-day window, so it must not be counted.
+              { w: week(30), a: 90_000, d: 90_000, c: 50 },
+            ],
+          },
+        ]);
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      if (url.includes('/commits')) {
+        return Response.json([
+          {
+            author: { login: 'ada' },
+            commit: { author: { date: '2026-09-05T09:00:00Z' } },
+          },
+        ]);
+      }
+      return Response.json([]);
+    });
+    const data = await fetchGitHub(
+      { repo: 'Aptide-ai' },
+      { ...withToken, now },
+    );
+    const ada = data.commitActivity?.people[0];
+    expect(ada?.login).toBe('ada');
+    expect(ada?.added).toBe(2000);
+    expect(ada?.removed).toBe(400);
+    // The commit count comes from the commit list, which counts by day rather
+    // than by week, not from the weekly statistics.
+    expect(ada?.commits).toBe(1);
+    vi.unstubAllGlobals();
+  }, 20_000);
+
+  it('carries on without lines when the statistics are too big to read', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      }
+      if (url.includes('/stats/contributors')) {
+        return new Response('{}', { status: 500 });
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      if (url.includes('/commits')) {
+        return Response.json([
+          {
+            author: { login: 'ada' },
+            commit: { author: { date: '2026-09-05T09:00:00Z' } },
+          },
+        ]);
+      }
+      return Response.json([]);
+    });
+    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    const ada = data.commitActivity?.people[0];
+    expect(ada?.commits).toBeGreaterThan(0);
+    expect(ada?.added).toBeUndefined();
+    expect(data.warnings).toEqual([]);
+    vi.unstubAllGlobals();
+  }, 20_000);
 
   it('fails only when no field is usable', async () => {
     await expect(fetchGitHub({ repo: 'a/b/c' }, context)).rejects.toThrow(

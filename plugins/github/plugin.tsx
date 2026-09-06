@@ -419,11 +419,18 @@ function PeopleView(props: PluginViewProps) {
   const { label, activity, data } = result;
   const developers = activity?.people ?? [];
   /** People if we know them, otherwise repositories, otherwise contributors. */
-  const byline =
+  const byline: Array<{
+    name: string;
+    commits: number;
+    added?: number;
+    removed?: number;
+  }> =
     developers.length > 0
       ? developers.map((person) => ({
           name: person.login,
           commits: person.commits,
+          added: person.added,
+          removed: person.removed,
         }))
       : activity && activity.repos.length > 0
         ? activity.repos.map((repo) => ({
@@ -451,6 +458,14 @@ function PeopleView(props: PluginViewProps) {
         {byline.slice(0, 8).map((entry) => (
           <li key={entry.name}>
             <strong>{entry.name}</strong>
+            {entry.added !== undefined && (
+              // Lines say more than a commit count when a repository squashes
+              // every pull request into one commit.
+              <span className="github-lines">
+                +{compactNumber(entry.added)} &minus;
+                {compactNumber(entry.removed ?? 0)}
+              </span>
+            )}
             <span>{compactNumber(entry.commits)}</span>
           </li>
         ))}

@@ -111,7 +111,7 @@
 
 .github-people li {
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   align-items: baseline;
   gap: var(--space-gap);
   font-size: clamp(11px, min(7cqmin, 4.4cqi), 76px);
@@ -127,6 +127,12 @@
 
 .github-people span {
   color: var(--faint);
+}
+
+/* Lines moved, quieter than the commit count beside it. */
+.github-people .github-lines {
+  font-size: 0.72em;
+  opacity: 0.8;
 }
 
 /* Activity: one sentence per row, sized so eight rows fill the block. */

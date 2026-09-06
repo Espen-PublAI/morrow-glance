@@ -32,6 +32,23 @@ set `MORROW_GITHUB_TOKEN` on Morrow Server once instead of pasting the token
 into each of them. Note also that deleting a block deletes its secrets, so
 rebuilding a block means entering its token again.
 
+## What a commit means here
+
+A commit on the default branch is not a unit of work. A repository that
+squash-merges turns each pull request into exactly one commit, so "commits
+this week" reads as "pull requests merged this week", and someone whose
+branches carry twenty commits looks identical to someone whose carry one.
+
+So the people view also shows **lines added and removed** over the same
+window, from GitHub's weekly contributor statistics. Lines survive squashing.
+Neither number is a measure of effort, and a large deletion is as often good
+housekeeping as it is lost work, but the two together say more than either.
+
+Lines are bucketed by week at source, so the window is whole weeks rather
+than an exact 28 days. On a repository with hundreds of contributors the
+statistics run to megabytes; the block reads what it can and simply omits the
+lines rather than failing.
+
 ## Reading the graph
 
 In the graph, **each column is one week**, oldest on the left, with the month

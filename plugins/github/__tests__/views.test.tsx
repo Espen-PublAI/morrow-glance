@@ -191,6 +191,29 @@ describe('the repository views, one thing each', () => {
     expect(container.querySelector('.github-people')).toBeNull();
   });
 
+  it('shows lines moved beside the commit count', () => {
+    show(
+      'people',
+      stored({
+        commitActivity: {
+          ...full,
+          people: [
+            { login: 'ada', commits: 63, added: 21_134, removed: 1938 },
+            { login: 'sam', commits: 16, added: 3163, removed: 156 },
+          ],
+        },
+      }),
+      repoSettings,
+    );
+    // Lines say more than a commit count when every pull request is squashed
+    // into a single commit on the default branch.
+    // Large numbers shorten, smaller ones stay exact.
+    expect(screen.getByText(/\+21\.1k/)).toBeTruthy();
+    expect(screen.getByText(/1,938/)).toBeTruthy();
+    expect(screen.getByText(/\+3,163/)).toBeTruthy();
+    expect(screen.getByText('63')).toBeTruthy();
+  });
+
   it('shows the people alone, one per row', () => {
     const { container } = show(
       'people',

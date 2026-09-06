@@ -103,6 +103,14 @@ export interface TopContributor {
   login: string;
   /** All-time commits to the default branch, which is what GitHub reports. */
   commits: number;
+  /**
+   * Lines added and removed in the same window as `commits`, when GitHub will
+   * report them. Null when it will not. Under squash-merging a commit on the
+   * default branch is a whole pull request, so lines say more about volume
+   * than a commit count does.
+   */
+  added?: number;
+  removed?: number;
 }
 
 export interface RepoContributors {
@@ -351,6 +359,47 @@ export function visibleWeeks(weeks: number[][], minWeeks = 16): number[][] {
   if (firstActive <= 0) return weeks;
   const start = Math.min(firstActive, Math.max(0, weeks.length - minWeeks));
   return weeks.slice(start);
+}
+
+export interface AuthorLines {
+  added: number;
+  removed: number;
+  commits: number;
+}
+
+/**
+ * `/stats/contributors` carries, for every author, one bucket per week with
+ * lines added, lines removed and commits. Summed over the recent buckets it
+ * answers how much code each person actually moved, which a commit count
+ * cannot when every pull request is squashed into one commit.
+ */
+export function parseContributorLines(
+  json: unknown,
+  since: Date,
+): Map<string, AuthorLines> {
+  const totals = new Map<string, AuthorLines>();
+  if (!Array.isArray(json)) return totals;
+  const from = Math.floor(since.getTime() / 1000);
+  for (const raw of json) {
+    const entry = rec(raw);
+    const login = str(rec(entry.author).login);
+    const weeks = entry.weeks;
+    if (!login || !Array.isArray(weeks)) continue;
+    const sum: AuthorLines = { added: 0, removed: 0, commits: 0 };
+    for (const rawWeek of weeks) {
+      const week = rec(rawWeek);
+      // `w` is the week's start; a week that began before the window still
+      // counts, since GitHub reports no finer than a week here.
+      if (num(week.w, 0) + 6 * 86_400 < from) continue;
+      sum.added += num(week.a);
+      sum.removed += num(week.d);
+      sum.commits += num(week.c);
+    }
+    if (sum.commits > 0 || sum.added > 0 || sum.removed > 0) {
+      totals.set(login, sum);
+    }
+  }
+  return totals;
 }
 
 /** `/contributors` is ordered by commits, so the first entries are the top. */
@@ -753,6 +802,27 @@ async function fetchTotalCommits(
   return Array.isArray(body) ? body.length : null;
 }
 
+/**
+ * Lines moved per author, from the weekly statistics. This is the endpoint
+ * that runs to megabytes on a very large repository, so a response too big to
+ * read simply yields nothing rather than failing the block.
+ */
+async function fetchAuthorLines(
+  { owner, name }: RepoRef,
+  token: string | undefined,
+  since: Date,
+): Promise<Map<string, AuthorLines>> {
+  try {
+    const raw = await requestStats(
+      `${API}/repos/${owner}/${name}/stats/contributors`,
+      token,
+    );
+    return parseContributorLines(raw, since);
+  } catch {
+    return new Map();
+  }
+}
+
 /** How many of an owner's repositories to aggregate, busiest pushed first. */
 const OWNER_REPO_LIMIT = 10;
 
@@ -960,8 +1030,42 @@ async function fetchOwnerActivity(
       authors.set(login, (authors.get(login) ?? 0) + count);
     }
   }
-  const people = [...authors.entries()]
-    .map(([login, commits]) => ({ login, commits }))
+  // Lines moved, from the weekly statistics, for the same window.
+  const peopleSince = new Date(now.getTime() - PEOPLE_DAYS * 86_400_000);
+  const lineTotals = new Map<string, AuthorLines>();
+  await Promise.all(
+    usable.map(async (result) => {
+      for (const [login, lines] of await fetchAuthorLines(
+        result.ref,
+        token,
+        peopleSince,
+      )) {
+        const running = lineTotals.get(login) ?? {
+          added: 0,
+          removed: 0,
+          commits: 0,
+        };
+        lineTotals.set(login, {
+          added: running.added + lines.added,
+          removed: running.removed + lines.removed,
+          commits: running.commits + lines.commits,
+        });
+      }
+    }),
+  );
+
+  const logins = new Set([...authors.keys(), ...lineTotals.keys()]);
+  const people = [...logins]
+    .map((login) => {
+      const lines = lineTotals.get(login);
+      return {
+        login,
+        // Prefer the commit list, which counts by day rather than by week.
+        commits: authors.get(login) ?? lines?.commits ?? 0,
+        ...(lines ? { added: lines.added, removed: lines.removed } : {}),
+      };
+    })
+    .filter((person) => person.commits > 0)
     .sort((a, b) => b.commits - a.commits);
 
   const totals = await Promise.all(
