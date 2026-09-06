@@ -1,6 +1,7 @@
 import { defineMorrowConfig } from '@/lib/morrow/config';
 import {
   DEFAULT_FOOTER,
+  DEFAULT_HOUR_FORMAT,
   DEFAULT_LAYOUT,
   DEFAULT_ROTATION_SECONDS,
   DEFAULT_SCREEN_ID,
@@ -30,4 +31,5 @@ export const morrowConfig = defineMorrowConfig({
   ],
   disabledPlugins: [],
   footer: DEFAULT_FOOTER,
+  hourFormat: DEFAULT_HOUR_FORMAT,
 });

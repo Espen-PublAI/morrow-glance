@@ -54,3 +54,26 @@ describe('describeOffset', () => {
     expect(describeOffset(noon, 'Mars/Olympus', 'Europe/Oslo')).toBe('');
   });
 });
+
+describe('the display\u2019s hour format', () => {
+  const noon = new Date('2026-09-06T16:15:00.000Z');
+
+  it('writes twenty-four hour by default, as most of the world does', () => {
+    expect(formatTime(noon, 'Europe/Oslo')).toBe('18:15');
+    expect(formatTime(noon, 'Europe/Oslo', '24h')).toBe('18:15');
+  });
+
+  it('writes twelve hour when the display asks for it', () => {
+    // Normal in the United States and a few other places.
+    expect(formatTime(noon, 'Europe/Oslo', '12h')).toMatch(/^6:15\s?PM$/i);
+    expect(formatTime(noon, 'America/New_York', '12h')).toMatch(
+      /^12:15\s?PM$/i,
+    );
+  });
+
+  it('keeps a leading zero only where the format expects one', () => {
+    const early = new Date('2026-09-06T05:04:00.000Z');
+    expect(formatTime(early, 'UTC', '24h')).toBe('05:04');
+    expect(formatTime(early, 'UTC', '12h')).toMatch(/^5:04\s?AM$/i);
+  });
+});

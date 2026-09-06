@@ -1,5 +1,6 @@
 import {
   DEFAULT_FOOTER,
+  DEFAULT_HOUR_FORMAT,
   DEFAULT_ROTATION_SECONDS,
   DEFAULT_SCREEN_ID,
   DEFAULT_SCREENS,
@@ -7,6 +8,7 @@ import {
 import {
   DATA_SOURCE_KINDS,
   MORROW_COLORS,
+  MORROW_HOUR_FORMATS,
   type BlockDataSource,
   type GlanceBlock,
   type GlanceLayout,
@@ -433,6 +435,11 @@ export function parseMorrowConfig(input: unknown): MorrowConfig {
     pages,
     disabledPlugins,
     footer: footer(source.footer),
+    hourFormat: oneOf(
+      source.hourFormat ?? DEFAULT_HOUR_FORMAT,
+      'hourFormat',
+      MORROW_HOUR_FORMATS,
+    ),
   };
 }
 

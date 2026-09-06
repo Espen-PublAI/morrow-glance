@@ -1,7 +1,11 @@
 import type { CSSProperties } from 'react';
 
 import { sharedEdges } from '@/lib/morrow/layout';
-import type { BlockData, GlancePage } from '@/lib/morrow/types';
+import type {
+  BlockData,
+  GlancePage,
+  MorrowHourFormat,
+} from '@/lib/morrow/types';
 import { pluginRegistry } from '@/plugins';
 
 /** Renders one page of blocks onto a CSS grid. Shared by Player and Admin. */
@@ -23,6 +27,7 @@ export function GlanceRenderer({
   now,
   blockData,
   timeZone,
+  hourFormat,
 }: {
   page: GlancePage;
   now: Date;
@@ -30,6 +35,8 @@ export function GlanceRenderer({
   blockData?: Record<string, BlockData>;
   /** The display's timezone, passed to every view. */
   timeZone: string;
+  /** How the display writes times, passed to every view. */
+  hourFormat?: MorrowHourFormat;
 }) {
   const layoutStyle: LayoutStyle = {
     '--columns': page.layout.columns,
@@ -45,6 +52,7 @@ export function GlanceRenderer({
           settings: block.settings ?? {},
           data: blockData?.[block.id],
           timeZone,
+          hourFormat,
         });
         const style: BlockStyle = {
           '--column': block.column,

@@ -57,7 +57,7 @@ function DigitalView(props: PluginViewProps) {
   return (
     <div className="plugin-view clock-plugin clock-digital">
       <span className="plugin-label">{label}</span>
-      <time>{formatTime(now, zone)}</time>
+      <time>{formatTime(now, zone, props.hourFormat)}</time>
       <Relation now={now} zone={zone} city={city} displayZone={displayZone} />
     </div>
   );
@@ -107,7 +107,7 @@ function AnalogView(props: PluginViewProps) {
         />
         <circle className="clock-centre" cx="50" cy="50" r="2.2" />
       </svg>
-      <span className="sr-only">{formatTime(now, zone)}</span>
+      <span className="sr-only">{formatTime(now, zone, props.hourFormat)}</span>
       <Relation now={now} zone={zone} city={city} displayZone={displayZone} />
     </div>
   );
@@ -163,7 +163,7 @@ function MapView(props: PluginViewProps) {
         )}
       </svg>
       <div className="clock-map-time">
-        <time>{formatTime(now, zone)}</time>
+        <time>{formatTime(now, zone, props.hourFormat)}</time>
         <Relation now={now} zone={zone} city={city} displayZone={displayZone} />
       </div>
     </div>

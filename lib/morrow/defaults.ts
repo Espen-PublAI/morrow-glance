@@ -2,6 +2,7 @@ import { browserScreen } from '@/lib/morrow/screens/browser';
 import type {
   FooterFields,
   GlanceLayout,
+  MorrowHourFormat,
   ScreenProfile,
 } from '@/lib/morrow/types';
 
@@ -10,6 +11,9 @@ export const DEFAULT_LAYOUT: GlanceLayout = { columns: 12, rows: 5 };
 
 /** Seconds between page rotations for a fresh install. */
 export const DEFAULT_ROTATION_SECONDS = 30;
+
+/** Twenty-four hour unless the display says otherwise. */
+export const DEFAULT_HOUR_FORMAT: MorrowHourFormat = '24h';
 
 /** A clean install shows everything in the footer; Admin can turn each off. */
 export const DEFAULT_FOOTER: FooterFields = {

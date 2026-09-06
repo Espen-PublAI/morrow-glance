@@ -39,7 +39,7 @@ Other scripts:
 
 Admin is the visual control surface for the system. It supports:
 
-- display name, location, timezone, paper colour, and page rotation;
+- display name, location, timezone, paper colour, twelve- or twenty-four-hour clock, and page rotation;
 - which of the date, location, and time the footer shows, for when a block already carries that information;
 - adding, naming, and removing pages;
 - dragging plugins from the library onto the page grid, moving blocks, and resizing them from a corner handle, with keyboard nudging for accessibility;

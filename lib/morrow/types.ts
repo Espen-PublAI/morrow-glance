@@ -79,6 +79,10 @@ export interface GlancePage {
  * redundant, and a footer that rearranges itself when an unrelated block is
  * added is unsettling on a screen meant to sit still.
  */
+/** How a display writes the time. Twelve-hour is normal in some countries. */
+export const MORROW_HOUR_FORMATS = ['24h', '12h'] as const;
+export type MorrowHourFormat = (typeof MORROW_HOUR_FORMATS)[number];
+
 export interface FooterFields {
   date: boolean;
   location: boolean;
@@ -104,6 +108,8 @@ export interface MorrowConfig {
   disabledPlugins: string[];
   /** Which of the footer's optional fields this display shows. */
   footer: FooterFields;
+  /** Whether times read 16:15 or 4:15 pm, everywhere on the display. */
+  hourFormat: MorrowHourFormat;
 }
 
 export type PluginSettingValue = string | number | boolean;
@@ -213,6 +219,8 @@ export interface PluginViewProps {
   settings: PluginSettings;
   /** The display's own timezone, so views can relate other zones to it. */
   timeZone: string;
+  /** How the display writes times, so a plugin agrees with the footer. */
+  hourFormat?: MorrowHourFormat;
   /** Present when the block has a data source and something has been stored. */
   data?: BlockData;
 }

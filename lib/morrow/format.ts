@@ -1,12 +1,23 @@
+import type { MorrowHourFormat } from '@/lib/morrow/types';
+
 /** Locale-stable time and date formatting shared by Player and Render API. */
 
-export function formatTime(date: Date, timeZone?: string): string {
+/**
+ * A time as the display writes it. Twenty-four hour by default, since that is
+ * what most of the world uses, but a display can ask for twelve.
+ */
+export function formatTime(
+  date: Date,
+  timeZone?: string,
+  hourFormat: MorrowHourFormat = '24h',
+): string {
+  const twelve = hourFormat === '12h';
   try {
-    return new Intl.DateTimeFormat('en-GB', {
+    return new Intl.DateTimeFormat(twelve ? 'en-US' : 'en-GB', {
       timeZone: timeZone || undefined,
-      hour: '2-digit',
+      hour: twelve ? 'numeric' : '2-digit',
       minute: '2-digit',
-      hour12: false,
+      hour12: twelve,
     }).format(date);
   } catch {
     return '--:--';

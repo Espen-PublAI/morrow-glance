@@ -205,6 +205,23 @@ export function AdminConsole(props: AdminStateOptions) {
                 ))}
               </select>
             </label>
+            <label className="field-label">
+              Clock
+              <select
+                value={config.hourFormat}
+                onChange={(event) =>
+                  updateConfig((current) => ({
+                    ...current,
+                    hourFormat:
+                      event.target.value === '12h' ? '12h' : ('24h' as const),
+                  }))
+                }
+              >
+                <option value="24h">24 hour · 16:15</option>
+                <option value="12h">12 hour · 4:15 PM</option>
+              </select>
+            </label>
+
             <div className="field-label">
               Footer
               <ul className="footer-toggles">

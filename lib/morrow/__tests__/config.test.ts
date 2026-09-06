@@ -305,6 +305,17 @@ describe('parseMorrowConfig', () => {
     ).toThrow(/footer/);
   });
 
+  it('defaults the clock to twenty-four hour, and accepts twelve', () => {
+    const { hourFormat: _h, ...before } = morrowConfig;
+    expect(parseMorrowConfig(before).hourFormat).toBe('24h');
+    expect(
+      parseMorrowConfig({ ...morrowConfig, hourFormat: '12h' }).hourFormat,
+    ).toBe('12h');
+    expect(() =>
+      parseMorrowConfig({ ...morrowConfig, hourFormat: 'am/pm' }),
+    ).toThrow(/hourFormat/);
+  });
+
   it('names the failing path in the error', () => {
     try {
       parseMorrowConfig({ ...morrowConfig, screens: [{ id: 'x' }] });
