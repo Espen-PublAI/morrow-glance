@@ -58,9 +58,7 @@ describe('contributions view', () => {
   it('draws one dot per day inside the range and none outside it', () => {
     const contributions = parseContributions(contributionsFixture);
     const { container } = show('heatmap', stored({ contributions }));
-    const dots = container.querySelectorAll(
-      '.github-heatmap span:not(.is-blank)',
-    );
+    const dots = container.querySelectorAll('circle');
     // 4 + 7 + 7 + 2 days carry data; the padding days are not drawn.
     expect(dots).toHaveLength(20);
     expect(screen.getByText('41 contributions in the last year')).toBeTruthy();
@@ -70,7 +68,7 @@ describe('contributions view', () => {
     const contributions = parseContributions(contributionsFixture);
     const { container } = show('heatmap', stored({ contributions }));
     const byLevel = (level: number) =>
-      container.querySelectorAll(`.github-heatmap span.is-l${level}`).length;
+      container.querySelectorAll(`circle.is-l${level}`).length;
     // Busiest day is 12. Counts: 0 ×12, 1–3 → l1 (2,1,3), 4–6 → l2 (5,4,6), 7–9 → l3 (8), 10–12 → l4 (12).
     expect(byLevel(0)).toBe(12);
     expect(byLevel(1)).toBe(3);
@@ -78,24 +76,20 @@ describe('contributions view', () => {
     expect(byLevel(3)).toBe(1);
     expect(byLevel(4)).toBe(1);
     // A busier day is a larger dot; the class carries the level.
-    expect(container.querySelector('.github-heatmap span.is-l4')).toBeTruthy();
-    expect(container.querySelector('.github-heatmap span.is-l0')).toBeTruthy();
+    expect(container.querySelector('circle.is-l4')).toBeTruthy();
+    expect(container.querySelector('circle.is-l0')).toBeTruthy();
   });
 
   it('lays the grid out as one column per week', () => {
     const contributions = parseContributions(contributionsFixture);
     const { container } = show('heatmap', stored({ contributions }));
-    const grid = container.querySelector('.github-heatmap');
-    // The grid takes its column count from the data and its size from the
-    // block, so it fills whatever shape the block happens to be.
-    expect(grid?.getAttribute('style')).toContain('--weeks: 4');
-    expect(container.querySelectorAll('.github-heatmap span')).toHaveLength(
-      4 * 7,
-    );
-    // Days outside the range occupy their cell but are not drawn.
-    expect(
-      container.querySelectorAll('.github-heatmap span.is-blank'),
-    ).toHaveLength(8);
+    // One picture, so the dots stay round whatever shape the block is and the
+    // labels cannot drift away from the columns they name.
+    const box = container.querySelector('svg')?.getAttribute('viewBox');
+    // Four weeks of ten units, plus the gutter and header for the labels.
+    expect(box).toBe('0 0 66 83');
+    // Twenty days carry data; the eight outside the range are not drawn.
+    expect(container.querySelectorAll('circle')).toHaveLength(20);
   });
 
   it('asks for a token when there is none, and explains a token that cannot read them', () => {
@@ -136,14 +130,20 @@ describe('the repository views, one thing each', () => {
       stored({ commitActivity: full, topContributors: people }),
       repoSettings,
     );
-    expect(container.querySelectorAll('.github-heatmap span')).toHaveLength(
-      52 * 7,
+    expect(container.querySelectorAll('circle')).toHaveLength(52 * 7);
+    // The labels are drawn inside the picture, so they cannot drift away from
+    // the columns and rows they name.
+    const labels = [...container.querySelectorAll('text')].map(
+      (text) => text.textContent,
     );
-    const days = [...container.querySelectorAll('.github-weekdays li')].map(
-      (li) => li.textContent,
+    expect(labels).toContain('Mon');
+    expect(labels).toContain('Wed');
+    expect(labels).toContain('Fri');
+    // A month named for each month the graph spans.
+    const months = labels.filter(
+      (name) => !['Mon', 'Wed', 'Fri'].includes(name ?? ''),
     );
-    expect(days).toEqual(['', 'Mon', '', 'Wed', '', 'Fri', '']);
-    expect(container.querySelectorAll('.github-months li').length).toBe(52);
+    expect(months.length).toBeGreaterThan(6);
     // Nothing else crowds it.
     expect(container.querySelector('.github-figures')).toBeNull();
     expect(container.querySelector('.github-people')).toBeNull();
@@ -208,9 +208,7 @@ describe('the repository views, one thing each', () => {
       stored({ commitActivity: quiet }),
       repoSettings,
     );
-    expect(container.querySelectorAll('.github-heatmap span')).toHaveLength(
-      16 * 7,
-    );
+    expect(container.querySelectorAll('circle')).toHaveLength(16 * 7);
     expect(screen.getByText(/16 weeks left to right/)).toBeTruthy();
   });
 

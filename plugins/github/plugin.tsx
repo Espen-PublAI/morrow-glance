@@ -1,5 +1,4 @@
 import { GitBranch } from 'lucide-react';
-import type { CSSProperties } from 'react';
 
 import { readStringSetting } from '@/lib/morrow/settings';
 import { definePlugin, type PluginViewProps } from '@/lib/morrow/types';
@@ -34,8 +33,15 @@ function readLabels({ settings }: PluginViewProps) {
  * how busy the day was. The same visual language as the world map, and shared
  * by the person's calendar and the repository's commits.
  */
-/** Sunday first, matching how the weeks are laid out. */
+/** Sunday first, matching how the weeks are laid out. Three are enough. */
 const WEEKDAYS = ['', 'Mon', '', 'Wed', '', 'Fri', ''] as const;
+
+/* Drawn in one coordinate system so the labels always line up with the
+   columns and the dots are always round, whatever shape the block is. */
+const CELL = 10;
+const GUTTER = 26;
+const HEADER = 13;
+const RADII = [1, 2.4, 3.1, 3.7, 4.3] as const;
 
 /** A short month name above the first column that falls in each month. */
 function monthLabels(count: number, from: string | undefined): string[] {
@@ -56,37 +62,57 @@ function monthLabels(count: number, from: string | undefined): string[] {
 
 function DotGrid({ weeks, from }: { weeks: number[][]; from?: string }) {
   const max = Math.max(0, ...weeks.flat());
-  // A CSS grid rather than an SVG: the cells take their size from the block, so
-  // the dots fill whatever shape the block is instead of sitting in a band of
-  // empty space inside a box of the wrong proportions.
-  const style = { '--weeks': weeks.length } as CSSProperties;
+  const months = monthLabels(weeks.length, from);
+  const width = GUTTER + weeks.length * CELL;
+  const height = HEADER + 7 * CELL;
   return (
-    <div className="github-graph">
-      {/* Which way the grid runs is not obvious from dots alone: months across
-          the top, weekdays down the side. */}
-      <span />
-      <ol className="github-months" style={style} aria-hidden="true">
-        {monthLabels(weeks.length, from).map((name, index) => (
-          <li key={index}>{name}</li>
-        ))}
-      </ol>
-      <ol className="github-weekdays" aria-hidden="true">
-        {WEEKDAYS.map((day, index) => (
-          <li key={index}>{day}</li>
-        ))}
-      </ol>
-      <div className="github-heatmap" style={style} aria-hidden="true">
-        {weeks.map((week, w) =>
-          week.map((count, d) => (
-            <span
-              key={`${w}-${d}`}
-              className={
-                count < 0 ? 'is-blank' : `is-l${contributionLevel(count, max)}`
-              }
-            />
-          )),
+    <div className="github-heatmap">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        preserveAspectRatio="xMidYMid meet"
+        aria-hidden="true"
+        focusable="false"
+      >
+        {months.map((name, week) =>
+          name ? (
+            <text
+              key={`m${week}`}
+              className="github-axis"
+              x={GUTTER + week * CELL}
+              y={HEADER - 5}
+            >
+              {name}
+            </text>
+          ) : null,
         )}
-      </div>
+        {WEEKDAYS.map((day, row) =>
+          day ? (
+            <text
+              key={`d${row}`}
+              className="github-axis"
+              x={0}
+              y={HEADER + row * CELL + CELL / 2 + 1.4}
+            >
+              {day}
+            </text>
+          ) : null,
+        )}
+        {weeks.map((week, w) =>
+          week.map((count, d) => {
+            if (count < 0) return null;
+            const level = contributionLevel(count, max);
+            return (
+              <circle
+                key={`${w}-${d}`}
+                className={`is-l${level}`}
+                cx={GUTTER + w * CELL + CELL / 2}
+                cy={HEADER + d * CELL + CELL / 2}
+                r={RADII[level]}
+              />
+            );
+          }),
+        )}
+      </svg>
     </div>
   );
 }
