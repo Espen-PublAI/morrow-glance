@@ -609,6 +609,101 @@ describe('what the repository field accepts', () => {
     vi.unstubAllGlobals();
   }, 20_000);
 
+  it('counts every commit a repository has ever had, exactly', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([
+          { full_name: 'Aptide-ai/api' },
+          { full_name: 'Aptide-ai/web' },
+        ]);
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      // per_page=1 makes the last page number the exact count.
+      if (url.includes('/api/commits?per_page=1')) {
+        return new Response('[{}]', {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            link: '<https://api.github.com/x?page=2>; rel="next", <https://api.github.com/x?page=1200>; rel="last"',
+          },
+        });
+      }
+      if (url.includes('/web/commits?per_page=1')) {
+        return new Response('[{}]', {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            link: '<https://api.github.com/x?page=34>; rel="last"',
+          },
+        });
+      }
+      return Response.json([]);
+    });
+    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    expect(data.commitActivity?.allTime).toBe(1234);
+    vi.unstubAllGlobals();
+  }, 20_000);
+
+  it('offers no total rather than a partial one', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/orgs/Aptide-ai/repos')) {
+        return Response.json([
+          { full_name: 'Aptide-ai/api' },
+          { full_name: 'Aptide-ai/web' },
+        ]);
+      }
+      if (url.includes('/stats/commit_activity')) {
+        return Response.json([
+          { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+        ]);
+      }
+      // One repository will not give its count, so the sum would be wrong.
+      if (url.includes('/web/commits?per_page=1')) {
+        return new Response('{}', { status: 500 });
+      }
+      if (url.includes('/commits?per_page=1')) {
+        return new Response('[{}]', {
+          status: 200,
+          headers: {
+            'content-type': 'application/json',
+            link: '<https://api.github.com/x?page=40>; rel="last"',
+          },
+        });
+      }
+      return Response.json([]);
+    });
+    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    expect(data.commitActivity?.allTime).toBeNull();
+    vi.unstubAllGlobals();
+  }, 20_000);
+
+  it('reads a single page as its own count, and 409 as zero', async () => {
+    const one = async (commitsResponse: Response) => {
+      vi.stubGlobal('fetch', async (url: string) => {
+        if (url.includes('/stats/commit_activity')) {
+          return Response.json([
+            { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
+          ]);
+        }
+        if (url.includes('/commits?per_page=1')) return commitsResponse.clone();
+        if (url.includes('/contributors'))
+          return Response.json(contributorsFixture);
+        return Response.json(repoFixture);
+      });
+      const data = await fetchGitHub({ repo: 'github/docs' }, withToken);
+      vi.unstubAllGlobals();
+      return data.commitActivity?.allTime;
+    };
+    // No link header: a single page, so the count is what came back.
+    expect(await one(Response.json([{}]))).toBe(1);
+    // An empty repository answers 409, which is a real zero.
+    expect(await one(new Response('{}', { status: 409 }))).toBe(0);
+  }, 30_000);
+
   it('fails only when no field is usable', async () => {
     await expect(fetchGitHub({ repo: 'a/b/c' }, context)).rejects.toThrow(
       /not a repository as owner\/name/,

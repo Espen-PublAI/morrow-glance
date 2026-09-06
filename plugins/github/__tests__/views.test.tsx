@@ -156,6 +156,7 @@ describe('repository commit activity', () => {
       people: [],
       peopleDays: 0,
       wholeYear: true,
+      allTime: null,
     };
     const { container } = show(
       'commits',
@@ -184,10 +185,13 @@ describe('repository commit activity', () => {
             { login: 'espen', commits: 11 },
           ],
           peopleDays: 28,
+          allTime: 12_004,
         },
       }),
       repoSettings,
     );
+    expect(screen.getByText('all time')).toBeTruthy();
+    expect(screen.getByText('12k')).toBeTruthy();
     expect(screen.getByText('ada')).toBeTruthy();
     expect(screen.getByText('42')).toBeTruthy();
     // The repository list gives way to the people, and both are summarised.
@@ -205,6 +209,7 @@ describe('repository commit activity', () => {
           repos: [{ name: 'api', commits: 300 }],
           people: [],
           peopleDays: 28,
+          allTime: 12_004,
         },
       }),
       repoSettings,

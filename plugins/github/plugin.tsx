@@ -339,6 +339,12 @@ function CommitsView(props: PluginViewProps) {
               {activity.wholeYear ? 'last year' : spanLabel(activity)}
             </small>
           </li>
+          {activity.allTime !== null && (
+            <li>
+              <strong>{compactNumber(activity.allTime)}</strong>
+              <small>all time</small>
+            </li>
+          )}
         </ol>
       )}
       {weeks.length > 0 && <DotGrid weeks={weeks} />}

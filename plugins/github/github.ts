@@ -91,6 +91,12 @@ export interface CommitActivity {
    * `from` to `to` and must not be labelled as a year.
    */
   wholeYear: boolean;
+  /**
+   * Every commit on the default branch, for the whole life of the repository.
+   * Null when it could not be determined. Counted exactly, from the last page
+   * number of a one-per-page listing, rather than estimated.
+   */
+  allTime: number | null;
 }
 
 export interface TopContributor {
@@ -327,6 +333,7 @@ export function parseCommitActivity(
     people: [],
     peopleDays: 0,
     wholeYear: true,
+    allTime: null,
   };
 }
 
@@ -602,7 +609,10 @@ async function fetchCommitActivity(
     raw = await fetchCommitsAsWeeks({ owner, name }, token, now);
     wholeYear = false;
   }
-  return { ...parseCommitActivity(raw, now), wholeYear };
+  const allTime = await fetchTotalCommits({ owner, name }, token).catch(
+    () => null,
+  );
+  return { ...parseCommitActivity(raw, now), wholeYear, allTime };
 }
 
 /**
@@ -701,6 +711,29 @@ async function fetchCommitsAsWeeks(
     weeks.push({ week, days });
   }
   return weeks;
+}
+
+/**
+ * Every commit a repository has ever had on its default branch. Asking for one
+ * commit per page makes the last page number the exact count, so this is a
+ * single request however long the history is.
+ */
+async function fetchTotalCommits(
+  { owner, name }: RepoRef,
+  token: string | undefined,
+): Promise<number | null> {
+  const response = await request(
+    `${API}/repos/${owner}/${name}/commits?per_page=1`,
+    token,
+  );
+  // An empty repository answers 409, which is a real zero.
+  if (response.status === 409) return 0;
+  if (!response.ok) return null;
+  const fromLink = parseLastPage(response.headers.get('link'));
+  if (fromLink !== null) return fromLink;
+  // No link header means a single page, so the count is what came back.
+  const body = await readJson(response);
+  return Array.isArray(body) ? body.length : null;
 }
 
 /** How many of an owner's repositories to aggregate, busiest pushed first. */
@@ -913,6 +946,21 @@ async function fetchOwnerActivity(
     .map(([login, commits]) => ({ login, commits }))
     .sort((a, b) => b.commits - a.commits);
 
+  const totals = await Promise.all(
+    usable.map(async (result) => {
+      try {
+        return await fetchTotalCommits(result.ref, token);
+      } catch {
+        return null;
+      }
+    }),
+  );
+  // Only a total if every repository could be counted; a partial sum presented
+  // as a total would be worse than none.
+  const allTime = totals.every((count) => count !== null)
+    ? totals.reduce((sum: number, count) => sum + (count ?? 0), 0)
+    : null;
+
   const weeks = mergeCommitActivity(usable.map((result) => result.weeks));
   // Every repository readable but none with commits: a real answer, not a
   // failure. Report zero rather than throwing.
@@ -932,6 +980,7 @@ async function fetchOwnerActivity(
           people: [],
           peopleDays: 0,
           wholeYear: true,
+          allTime: null,
         };
   const breakdown = usable
     .map((result) => ({
@@ -951,6 +1000,7 @@ async function fetchOwnerActivity(
     peopleDays: PEOPLE_DAYS,
     // Only a year if every repository could give one.
     wholeYear: usable.every((result) => result.wholeYear),
+    allTime,
   };
 }
 
