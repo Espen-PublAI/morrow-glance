@@ -18,19 +18,22 @@ import {
   writeStoredAdminToken,
   writeStoredMorrowConfig,
 } from '@/lib/morrow/client';
+import { CONFIG_LIMITS } from '@/lib/morrow/config';
 import { DEFAULT_LAYOUT } from '@/lib/morrow/defaults';
 import {
   canPlace,
   createId,
   findFreeSlot,
   minSizeFor,
+  refitBlocks,
   sizePresetsFor,
   type GridRect,
 } from '@/lib/morrow/layout';
-import { screenPresets } from '@/lib/morrow/screens';
+import { defaultScreen, screenPresets } from '@/lib/morrow/screens';
 import type {
   BlockData,
   GlanceBlock,
+  GlanceLayout,
   GlancePage,
   MorrowConfig,
   PluginManifest,
@@ -79,6 +82,12 @@ function initialSettings(
         setting.type === 'timezone' ? timeZone : (setting.defaultValue ?? ''),
       ]),
   );
+}
+
+/** Keep a typed grid size inside what the configuration will accept. */
+function clampGrid(value: number): number {
+  if (!Number.isFinite(value)) return 1;
+  return Math.min(Math.max(1, Math.round(value)), CONFIG_LIMITS.gridSize);
 }
 
 export interface AdminStateOptions {
@@ -165,6 +174,9 @@ export function useAdminState({
   const selectedScreen = config.screens.find(
     (screen) => screen.id === screenId,
   );
+  // The canvas previews the screen being looked at, or the display's default,
+  // so an upright tablet is edited upright rather than in a 16:10 box.
+  const previewScreen = selectedScreen ?? defaultScreen(config);
   const disabled = new Set(config.disabledPlugins);
   const enabledPlugins = pluginCatalog.filter(
     (plugin) => !disabled.has(plugin.manifest.id),
@@ -243,6 +255,40 @@ export function useAdminState({
     const remaining = config.pages.filter((page) => page.id !== id);
     updateConfig((current) => ({ ...current, pages: remaining }));
     if (activePage?.id === id) selectPage(remaining[0]?.id ?? '');
+  };
+
+  /** Move a page earlier or later. Pages rotate in this order. */
+  const movePage = (id: string, direction: 1 | -1) => {
+    const from = config.pages.findIndex((page) => page.id === id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= config.pages.length) return;
+    updateConfig((current) => {
+      const pages = [...current.pages];
+      const [moved] = pages.splice(from, 1);
+      if (moved) pages.splice(to, 0, moved);
+      return { ...current, pages };
+    });
+  };
+
+  /**
+   * Change the active page's grid. Blocks are re-fitted onto it; when one
+   * cannot be kept the change is refused rather than losing it, because
+   * shrinking a grid by a column should never quietly delete someone's work.
+   */
+  const resizeLayout = (patch: Partial<GlanceLayout>) => {
+    if (!activePage) return;
+    const layout: GlanceLayout = {
+      columns: clampGrid(patch.columns ?? activePage.layout.columns),
+      rows: clampGrid(patch.rows ?? activePage.layout.rows),
+    };
+    const refit = refitBlocks(activePage.blocks, layout);
+    if (refit.dropped.length > 0) {
+      setError(
+        `${refit.dropped.length} block(s) do not fit a ${layout.columns} × ${layout.rows} grid. Remove or shrink some first.`,
+      );
+      return;
+    }
+    updatePage((page) => ({ ...page, layout, blocks: refit.blocks }));
   };
 
   /* Screens -------------------------------------------------------------- */
@@ -480,6 +526,7 @@ export function useAdminState({
     selectedBlockId: blockId,
     selectedPlugin,
     selectedScreen,
+    previewScreen,
     enabledPlugins,
     sizePresets,
     blockData,
@@ -502,7 +549,9 @@ export function useAdminState({
     selectPage,
     addPage,
     removePage,
+    movePage,
     updatePage,
+    resizeLayout,
 
     // Screens
     addScreen,

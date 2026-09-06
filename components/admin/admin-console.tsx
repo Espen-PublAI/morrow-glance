@@ -3,6 +3,8 @@
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
+  ChevronUp,
   Eye,
   Monitor,
   Plus,
@@ -23,6 +25,7 @@ import {
   type AdminStateOptions,
 } from '@/components/admin/use-admin-state';
 import { Button } from '@/components/ui/button';
+import { CONFIG_LIMITS } from '@/lib/morrow/config';
 import { COMMON_LOCALES } from '@/lib/morrow/locales';
 import { screenPresets } from '@/lib/morrow/screens';
 import { MORROW_COLORS } from '@/lib/morrow/types';
@@ -41,6 +44,7 @@ export function AdminConsole(props: AdminStateOptions) {
     selectedBlockId,
     selectedPlugin,
     selectedScreen,
+    previewScreen,
     enabledPlugins,
     sizePresets,
     blockData,
@@ -57,7 +61,9 @@ export function AdminConsole(props: AdminStateOptions) {
     selectPage,
     addPage,
     removePage,
+    movePage,
     updatePage,
+    resizeLayout,
     addScreen,
     updateScreen,
     removeScreen,
@@ -358,34 +364,57 @@ export function AdminConsole(props: AdminStateOptions) {
               </button>
             </div>
             <nav className="page-list" aria-label="Glance pages">
-              {config.pages.map((page, index) => (
-                <div key={page.id} className="page-row-wrap">
-                  <button
-                    type="button"
-                    className={
-                      page.id === activePage?.id && !selectedScreen
-                        ? 'page-row is-active'
-                        : 'page-row'
-                    }
-                    onClick={() => selectPage(page.id)}
-                  >
-                    <span className="page-index">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    {page.label || 'Untitled page'}
-                  </button>
-                  <button
-                    type="button"
-                    className="row-delete"
-                    aria-label={`Delete page ${page.label || 'Untitled page'}`}
-                    title="Delete page"
-                    disabled={config.pages.length === 1}
-                    onClick={() => removePage(page.id)}
-                  >
-                    <Trash2 />
-                  </button>
-                </div>
-              ))}
+              {config.pages.map((page, index) => {
+                const name = page.label || 'Untitled page';
+                return (
+                  <div key={page.id} className="page-row-wrap">
+                    <button
+                      type="button"
+                      className={
+                        page.id === activePage?.id && !selectedScreen
+                          ? 'page-row is-active'
+                          : 'page-row'
+                      }
+                      onClick={() => selectPage(page.id)}
+                    >
+                      <span className="page-index">
+                        {String(index + 1).padStart(2, '0')}
+                      </span>
+                      {name}
+                    </button>
+                    <button
+                      type="button"
+                      className="row-action"
+                      aria-label={`Move ${name} earlier`}
+                      title="Move earlier"
+                      disabled={index === 0}
+                      onClick={() => movePage(page.id, -1)}
+                    >
+                      <ChevronUp />
+                    </button>
+                    <button
+                      type="button"
+                      className="row-action"
+                      aria-label={`Move ${name} later`}
+                      title="Move later"
+                      disabled={index === config.pages.length - 1}
+                      onClick={() => movePage(page.id, 1)}
+                    >
+                      <ChevronDown />
+                    </button>
+                    <button
+                      type="button"
+                      className="row-action row-delete"
+                      aria-label={`Delete page ${name}`}
+                      title="Delete page"
+                      disabled={config.pages.length === 1}
+                      onClick={() => removePage(page.id)}
+                    >
+                      <Trash2 />
+                    </button>
+                  </div>
+                );
+              })}
             </nav>
           </section>
         </aside>
@@ -401,6 +430,42 @@ export function AdminConsole(props: AdminStateOptions) {
               }
             />
             <span>{activePage?.blocks.length ?? 0} blocks</span>
+            {activePage && (
+              <span className="grid-control">
+                <label>
+                  <span className="sr-only">Grid columns</span>
+                  <input
+                    data-lpignore="true"
+                    type="number"
+                    min="1"
+                    max={CONFIG_LIMITS.gridSize}
+                    value={activePage.layout.columns}
+                    onChange={(event) =>
+                      resizeLayout({
+                        columns: Number.parseInt(event.target.value, 10),
+                      })
+                    }
+                  />
+                </label>
+                ×
+                <label>
+                  <span className="sr-only">Grid rows</span>
+                  <input
+                    data-lpignore="true"
+                    type="number"
+                    min="1"
+                    max={CONFIG_LIMITS.gridSize}
+                    value={activePage.layout.rows}
+                    onChange={(event) =>
+                      resizeLayout({
+                        rows: Number.parseInt(event.target.value, 10),
+                      })
+                    }
+                  />
+                </label>
+                <small>grid</small>
+              </span>
+            )}
             <button
               type="button"
               onClick={() => activePage && removePage(activePage.id)}
@@ -420,9 +485,14 @@ export function AdminConsole(props: AdminStateOptions) {
               canvasRef={canvasRef}
               page={activePage}
               color={config.color}
-              now={now}
+              aspect={previewScreen.width / previewScreen.height}
+              display={{
+                now,
+                timeZone: config.timeZone,
+                hourFormat: config.hourFormat,
+                locale: config.locale,
+              }}
               blockData={blockData}
-              timeZone={config.timeZone}
               registry={pluginRegistry}
               selectedBlockId={selectedBlockId}
               ghost={drag.ghost}

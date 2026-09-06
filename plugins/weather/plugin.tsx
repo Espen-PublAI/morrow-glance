@@ -222,7 +222,6 @@ export const plugin = definePlugin({
     version: '0.1.0',
     description:
       'Forecast for any place on Earth: now, the next hours, or the week.',
-    refreshSeconds: 3600,
     views: [
       { id: 'now', name: 'Now' },
       { id: 'today', name: 'Next hours' },

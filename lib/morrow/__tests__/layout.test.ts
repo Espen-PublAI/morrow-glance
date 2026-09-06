@@ -10,6 +10,7 @@ import {
   fitsGrid,
   insideBounds,
   minSizeFor,
+  refitBlocks,
   resizeToCell,
   sharedEdges,
   sizePresetsFor,
@@ -200,5 +201,69 @@ describe('sharedEdges', () => {
 
   it('treats grid edges as unshared', () => {
     expect(sharedEdges(a, [a])).toEqual({ left: false, top: false });
+  });
+});
+
+describe('refitBlocks', () => {
+  const at = (
+    id: string,
+    column: number,
+    row: number,
+    span: number,
+    rowSpan: number,
+  ): GlanceBlock => ({
+    id,
+    plugin: 'morrow.text',
+    view: 'note',
+    column,
+    row,
+    span,
+    rowSpan,
+  });
+
+  it('leaves a page alone when everything already fits', () => {
+    const blocks = [at('a', 1, 1, 6, 2), at('b', 7, 1, 6, 2)];
+    const result = refitBlocks(blocks, { columns: 12, rows: 5 });
+    expect(result.blocks).toEqual(blocks);
+    expect(result.dropped).toEqual([]);
+  });
+
+  it('shrinks blocks that are wider or taller than the new grid', () => {
+    const result = refitBlocks([at('a', 1, 1, 12, 5)], { columns: 6, rows: 3 });
+    expect(result.blocks[0]).toMatchObject({
+      column: 1,
+      row: 1,
+      span: 6,
+      rowSpan: 3,
+    });
+    expect(result.dropped).toEqual([]);
+  });
+
+  it('moves a block that no longer has room where it was', () => {
+    // On a 6-wide grid both are clamped to 6 columns, so they cannot share a row.
+    const result = refitBlocks([at('a', 1, 1, 6, 1), at('b', 7, 1, 6, 1)], {
+      columns: 6,
+      rows: 4,
+    });
+    expect(result.blocks).toEqual([
+      expect.objectContaining({ id: 'a', column: 1, row: 1 }),
+      expect.objectContaining({ id: 'b', column: 1, row: 2 }),
+    ]);
+    expect(result.dropped).toEqual([]);
+  });
+
+  it('names the blocks it cannot keep instead of dropping them quietly', () => {
+    const result = refitBlocks([at('a', 1, 1, 2, 1), at('b', 3, 1, 2, 1)], {
+      columns: 1,
+      rows: 1,
+    });
+    expect(result.blocks).toHaveLength(1);
+    expect(result.dropped).toEqual(['b']);
+  });
+
+  it('keeps the order the page already had, changing only positions', () => {
+    const blocks = [at('late', 1, 3, 4, 1), at('early', 1, 1, 4, 1)];
+    const result = refitBlocks(blocks, { columns: 4, rows: 3 });
+    expect(result.blocks.map((block) => block.id)).toEqual(['late', 'early']);
   });
 });

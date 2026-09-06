@@ -225,6 +225,35 @@ a {
   border-top: 0;
 }
 
+/*
+ * A page with no blocks. The first screen of every clean install, so it is
+ * centred and quiet rather than an error.
+ */
+.glance-empty {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4em;
+  color: var(--faint);
+  font-size: clamp(13px, 1.8vmin, 34px);
+  text-align: center;
+  animation: page-in 0.18s ease-out;
+}
+.glance-empty p {
+  margin: 0;
+}
+.glance-empty-hint {
+  color: var(--quiet);
+}
+.glance-empty a {
+  color: inherit;
+  text-decoration-color: var(--quiet);
+  text-underline-offset: 0.28em;
+}
+
 .missing-plugin {
   padding: 20px;
   color: var(--faint);

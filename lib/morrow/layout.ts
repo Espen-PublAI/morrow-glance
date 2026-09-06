@@ -136,6 +136,50 @@ export function findFreeSlot(
 }
 
 /**
+ * Re-fit a page's blocks onto a different grid.
+ *
+ * Blocks are placed in reading order: each keeps its position when it still
+ * fits and nothing has taken the space, otherwise it moves to the first free
+ * slot. A block too large for the new grid is shrunk to the grid first. Blocks
+ * that cannot be kept at all are named rather than silently discarded, so the
+ * caller can refuse the change instead of losing someone's work.
+ */
+export function refitBlocks(
+  blocks: GlanceBlock[],
+  layout: GlanceLayout,
+): { blocks: GlanceBlock[]; dropped: string[] } {
+  const ordered = [...blocks].sort(
+    (a, b) => a.row - b.row || a.column - b.column,
+  );
+  const placed = new Map<string, GlanceBlock>();
+  const dropped: string[] = [];
+
+  for (const block of ordered) {
+    const taken = [...placed.values()];
+    const wanted = clampToGrid(block, layout);
+    if (canPlace(wanted, taken, layout)) {
+      placed.set(block.id, { ...block, ...wanted });
+      continue;
+    }
+    const slot = findFreeSlot(taken, wanted, layout);
+    if (slot) {
+      placed.set(block.id, { ...block, ...wanted, ...slot });
+      continue;
+    }
+    dropped.push(block.id);
+  }
+
+  // Keep the page's own order, so only positions change.
+  return {
+    blocks: blocks.flatMap((block) => {
+      const next = placed.get(block.id);
+      return next ? [next] : [];
+    }),
+    dropped,
+  };
+}
+
+/**
  * Rect spanning from a fixed top-left anchor to the cell under the pointer,
  * never smaller than `min`, never past the grid edge.
  */

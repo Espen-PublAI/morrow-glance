@@ -621,3 +621,109 @@ describe('block data', () => {
     expect(result.current.error).toBe('');
   });
 });
+
+describe('the page grid', () => {
+  it('re-fits the blocks that stay when the grid shrinks', () => {
+    const { result } = setup(
+      configWith([block('a', { column: 1, span: 6, rowSpan: 1 })]),
+    );
+    act(() => result.current.resizeLayout({ columns: 4 }));
+
+    expect(result.current.activePage?.layout).toEqual({
+      columns: 4,
+      rows: 5,
+    });
+    // Too wide for the new grid, so it was shrunk rather than moved off it.
+    expect(result.current.activePage?.blocks[0]).toMatchObject({
+      column: 1,
+      span: 4,
+    });
+    expect(result.current.dirty).toBe(true);
+  });
+
+  it('refuses a grid that would lose a block, and says so', () => {
+    const { result } = setup(
+      configWith([
+        block('a', { column: 1, row: 1, span: 2, rowSpan: 1 }),
+        block('b', { column: 3, row: 1, span: 2, rowSpan: 1 }),
+      ]),
+    );
+    act(() => result.current.resizeLayout({ columns: 1, rows: 1 }));
+
+    expect(result.current.error).toMatch(/do not fit/i);
+    // Nothing changed: the page still has both blocks on its original grid.
+    expect(result.current.activePage?.blocks).toHaveLength(2);
+    expect(result.current.activePage?.layout).toEqual({
+      columns: 12,
+      rows: 5,
+    });
+  });
+
+  it('keeps a typed grid size inside what the configuration allows', () => {
+    const { result } = setup();
+    act(() => result.current.resizeLayout({ columns: 9999 }));
+    expect(result.current.activePage?.layout.columns).toBe(48);
+
+    act(() => result.current.resizeLayout({ rows: 0 }));
+    expect(result.current.activePage?.layout.rows).toBe(1);
+  });
+});
+
+describe('the order pages rotate in', () => {
+  const pageAt = (id: string) => ({
+    id,
+    label: id,
+    layout: { columns: 12, rows: 5 },
+    blocks: [],
+  });
+  const three = configWith([], [pageAt('a'), pageAt('b'), pageAt('c')]);
+
+  it('moves a page later and earlier', () => {
+    const { result } = setup(three);
+    act(() => result.current.movePage('a', 1));
+    expect(result.current.config.pages.map((page) => page.id)).toEqual([
+      'b',
+      'a',
+      'c',
+    ]);
+
+    act(() => result.current.movePage('c', -1));
+    expect(result.current.config.pages.map((page) => page.id)).toEqual([
+      'b',
+      'c',
+      'a',
+    ]);
+  });
+
+  it('does nothing at either end', () => {
+    const { result } = setup(three);
+    act(() => result.current.movePage('a', -1));
+    act(() => result.current.movePage('c', 1));
+    expect(result.current.config.pages.map((page) => page.id)).toEqual([
+      'a',
+      'b',
+      'c',
+    ]);
+    expect(result.current.dirty).toBe(false);
+  });
+});
+
+describe('the canvas preview', () => {
+  it('follows the default screen, and the one being looked at', () => {
+    const tablet = {
+      id: 'tablet',
+      name: 'Tablet',
+      width: 1024,
+      height: 1366,
+      refreshSeconds: 30,
+    };
+    const { result } = setup({
+      ...configWith([]),
+      screens: [...morrowConfig.screens, tablet],
+    });
+    expect(result.current.previewScreen.id).toBe(morrowConfig.defaultScreenId);
+
+    act(() => result.current.selectScreen('tablet'));
+    expect(result.current.previewScreen.id).toBe('tablet');
+  });
+});

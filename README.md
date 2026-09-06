@@ -41,9 +41,13 @@ Admin is the visual control surface for the system. It supports:
 
 - display name, location, timezone, language, paper colour, twelve- or twenty-four-hour clock, and page rotation;
 - which of the date, location, and time the footer shows, for when a block already carries that information;
-- adding, naming, and removing pages;
+- adding, naming, reordering, and removing pages, and setting each page's grid;
 - dragging plugins from the library onto the page grid, moving blocks, and resizing them from a corner handle, with keyboard nudging for accessibility;
 - adding screens from presets or as a custom size.
+
+The canvas is a preview, not a sketch: it takes the shape of the screen being designed for, and renders each block with the display's own language and clock. Select a screen in the sidebar to see the page upright on a tablet or wide on a television.
+
+Changing a page's grid re-fits the blocks already on it. If a block cannot be kept at the new size, the change is refused and says so, rather than quietly dropping it.
 
 ![Morrow Admin: the display settings, a page grid with a block selected, and the block inspector](docs/screenshots/admin.png)
 
@@ -165,7 +169,6 @@ export const plugin = definePlugin({
     name: 'Example',
     version: '0.1.0',
     description: 'A short description.',
-    refreshSeconds: 300,
     views: [{ id: 'default', name: 'Default' }],
     settings: [{ id: 'label', label: 'Label', type: 'text' }],
     defaultSize: { span: 6, rowSpan: 2 },
@@ -281,7 +284,8 @@ Remove both if you deploy elsewhere; they do not affect other targets.
 
 ```text
 app/                         Player, Admin, and the config API
-components/                  Player and Admin components
+components/player/           The Player: sync, rotation, and the page grid
+components/admin/            Admin: state, canvas, inspectors
 db/                          Storage: one adapter, SQLite and D1 behind it
 lib/morrow/                  Contracts, validation, grid math, screens, access checks
 migrations/                  Durable storage schema

@@ -155,11 +155,6 @@ export interface PluginManifest {
   name: string;
   version: string;
   description: string;
-  /**
-   * How often the plugin's content changes, in seconds. `0` means static.
-   * Reserved for scheduling; the Player currently refreshes every minute.
-   */
-  refreshSeconds: number;
   views: PluginViewDefinition[];
   settings?: PluginSettingDefinition[];
   defaultSize: { span: number; rowSpan: number };
@@ -219,18 +214,39 @@ export function definePluginServer(server: PluginServer): PluginServer {
   return server;
 }
 
-/** Props every plugin view receives. */
-export interface PluginViewProps {
+/**
+ * What a view needs from the display it is rendered on, rather than from its
+ * own block. One object so the Player and the Admin canvas cannot drift into
+ * showing the same block two different ways.
+ */
+export interface DisplayContext {
   now: Date;
-  settings: PluginSettings;
   /** The display's own timezone, so views can relate other zones to it. */
   timeZone: string;
   /** How the display writes times, so a plugin agrees with the footer. */
   hourFormat?: MorrowHourFormat;
   /** The language the display writes in, so plugins agree with the footer. */
   locale?: string;
+}
+
+/** Props every plugin view receives: the display's context plus its own block's. */
+export interface PluginViewProps extends DisplayContext {
+  settings: PluginSettings;
   /** Present when the block has a data source and something has been stored. */
   data?: BlockData;
+}
+
+/** Assemble one block's view props. Used wherever a block is rendered. */
+export function blockViewProps(
+  block: Pick<GlanceBlock, 'id' | 'settings'>,
+  display: DisplayContext,
+  blockData?: Record<string, BlockData>,
+): PluginViewProps {
+  return {
+    ...display,
+    settings: block.settings ?? {},
+    data: blockData?.[block.id],
+  };
 }
 
 export type PluginIcon = ComponentType<{ className?: string }>;

@@ -178,7 +178,6 @@ export const plugin = definePlugin({
     name: 'Clock',
     version: '0.3.0',
     description: 'The time in any city: digits, a clock face, or a world map.',
-    refreshSeconds: 60,
     views: [
       { id: 'digital', name: 'Digital' },
       { id: 'analog', name: 'Analog' },

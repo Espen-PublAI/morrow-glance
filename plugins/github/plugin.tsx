@@ -513,7 +513,6 @@ export const plugin = definePlugin({
     version: '0.1.0',
     description:
       'A repository\u2019s commit activity and contributors, or one person\u2019s contributions and activity.',
-    refreshSeconds: 300,
     views: [
       { id: 'commits', name: 'Repository: commit graph' },
       { id: 'figures', name: 'Repository: figures' },

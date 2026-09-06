@@ -23,7 +23,6 @@ export const plugin = definePlugin({
     name: 'Text',
     version: '0.1.0',
     description: 'Add a note, welcome message, or announcement.',
-    refreshSeconds: 0,
     views: [{ id: 'note', name: 'Note' }],
     settings: [
       {
