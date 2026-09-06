@@ -1,4 +1,8 @@
-/* GitHub: a contribution heatmap, an activity feed, and a repository pulse. */
+/*
+ * GitHub views. Everything sizes from the shared type scale on `.plugin-view`
+ * so a GitHub block sets the same way as a weather or clock block: one ink,
+ * figures large and tabular, labels small and quiet in the same uppercase.
+ */
 
 .github-plugin ol {
   margin: 0;
@@ -11,8 +15,49 @@
   font-size: var(--type-meta);
 }
 
-/* The graph. Drawn as one picture so the dots stay perfectly round and the
-   month and weekday labels always line up with the columns they name. */
+/* A row of figures: the number, then its name beneath in the label style. */
+.github-figures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(10px, 6cqmin, 60px);
+}
+
+.github-figures li {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
+  font-variant-numeric: tabular-nums;
+}
+
+.github-figures strong {
+  font-size: clamp(12px, min(8cqmin, 5cqi), 96px);
+  font-weight: var(--weight-regular);
+  letter-spacing: var(--tracking-display);
+  line-height: 1;
+}
+
+.github-figures small {
+  color: var(--faint);
+  font-size: var(--type-meta);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+/* With a block to itself the same row simply grows. */
+.github-figures.is-roomy {
+  flex: 1 1 auto;
+  align-content: center;
+  gap: clamp(12px, 7cqmin, 80px);
+}
+
+.github-figures.is-roomy strong {
+  font-size: clamp(18px, min(17cqmin, 9cqi), 220px);
+}
+
+/*
+ * The graph, drawn as one picture: the dots stay round at any block shape and
+ * the month and weekday names cannot drift from the columns they label.
+ */
 .github-heatmap {
   flex: 1 1 auto;
   min-height: 0;
@@ -31,11 +76,10 @@
 }
 
 .github-axis {
-  /* Quiet enough that the dots stay the subject. */
   fill: var(--faint);
-  font-size: 3.6px;
-  letter-spacing: 0.06em;
-  opacity: 0.75;
+  font-size: 3.4px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .github-heatmap .is-l0 {
@@ -54,25 +98,23 @@
   opacity: 1;
 }
 
-/* People: one name per row, which is what a block of its own affords. */
+/* People: a name and a number per row, set like the weather forecast rows. */
 .github-people {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
   align-content: center;
   gap: clamp(2px, 1.6cqmin, 18px);
-  margin: 0;
-  padding: 0;
-  list-style: none;
   overflow: hidden;
+  max-width: 40em;
 }
 
 .github-people li {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: baseline;
-  justify-content: space-between;
   gap: var(--space-gap);
-  font-size: clamp(12px, min(9cqmin, 5cqi), 88px);
+  font-size: clamp(11px, min(7cqmin, 4.4cqi), 76px);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -87,38 +129,57 @@
   color: var(--faint);
 }
 
-/* Figures with a block to themselves can be larger. */
-.github-figures.is-roomy {
-  flex: 1 1 auto;
-  align-content: center;
-  gap: clamp(12px, 8cqmin, 90px);
+/* Activity: one sentence per row, sized so eight rows fill the block. */
+.github-events {
+  display: grid;
+  align-content: start;
+  gap: clamp(2px, 1.2cqmin, 14px);
+  overflow: hidden;
+  max-width: 44em;
 }
 
-.github-figures.is-roomy li {
-  font-size: clamp(16px, min(16cqmin, 9cqi), 200px);
+.github-events li {
+  display: grid;
+  grid-template-columns: 2.6em 1fr;
+  gap: clamp(6px, 3cqmin, 30px);
+  align-items: baseline;
+  font-size: clamp(11px, min(5.8cqmin, 4.6cqi), 64px);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-/* Top contributors: one line of names and commit counts. */
-.github-top {
+.github-events li > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.github-events time {
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8em;
+}
+
+.github-events strong {
+  font-weight: var(--weight-medium);
+}
+
+/* Repository pulse: one large figure, then the rest as a row. */
+.github-repo-main {
   display: flex;
-  flex-wrap: wrap;
-  gap: clamp(8px, 4cqmin, 40px);
-  margin-top: var(--space-gap);
-  font-size: clamp(10px, min(4.6cqmin, 2.4cqi), 40px);
+  align-items: baseline;
+  gap: 0.35em;
+  font-size: var(--type-display);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-display);
+  letter-spacing: var(--tracking-display);
   font-variant-numeric: tabular-nums;
 }
 
-.github-top li {
-  display: flex;
-  gap: 0.4em;
-  align-items: baseline;
-  white-space: nowrap;
-}
-
-.github-top strong {
-  font-weight: var(--weight-regular);
-}
-
-.github-top span {
+.github-repo-main small {
   color: var(--faint);
+  font-size: 0.32em;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
 }

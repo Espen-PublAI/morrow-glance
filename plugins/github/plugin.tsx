@@ -42,6 +42,12 @@ const CELL = 10;
 const GUTTER = 26;
 const HEADER = 13;
 const RADII = [1, 2.4, 3.1, 3.7, 4.3] as const;
+/**
+ * How wide the drawing should be relative to its height. Few weeks would
+ * otherwise leave a wide block mostly empty, so the columns spread out; the
+ * dots keep their size, which is set by the row height, and stay round.
+ */
+const TARGET_RATIO = 2.9;
 
 /** A short month name above the first column that falls in each month. */
 function monthLabels(count: number, from: string | undefined): string[] {
@@ -63,8 +69,13 @@ function monthLabels(count: number, from: string | undefined): string[] {
 function DotGrid({ weeks, from }: { weeks: number[][]; from?: string }) {
   const max = Math.max(0, ...weeks.flat());
   const months = monthLabels(weeks.length, from);
-  const width = GUTTER + weeks.length * CELL;
   const height = HEADER + 7 * CELL;
+  // Never tighter than a square lattice, wider when there is room to spread.
+  const pitch = Math.max(
+    CELL,
+    (TARGET_RATIO * height - GUTTER) / Math.max(1, weeks.length),
+  );
+  const width = GUTTER + weeks.length * pitch;
   return (
     <div className="github-heatmap">
       <svg
@@ -78,7 +89,7 @@ function DotGrid({ weeks, from }: { weeks: number[][]; from?: string }) {
             <text
               key={`m${week}`}
               className="github-axis"
-              x={GUTTER + week * CELL}
+              x={GUTTER + week * pitch}
               y={HEADER - 5}
             >
               {name}
@@ -105,7 +116,7 @@ function DotGrid({ weeks, from }: { weeks: number[][]; from?: string }) {
               <circle
                 key={`${w}-${d}`}
                 className={`is-l${level}`}
-                cx={GUTTER + w * CELL + CELL / 2}
+                cx={GUTTER + w * pitch + pitch / 2}
                 cy={HEADER + d * CELL + CELL / 2}
                 r={RADII[level]}
               />

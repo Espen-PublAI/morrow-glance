@@ -85,9 +85,13 @@ describe('contributions view', () => {
     const { container } = show('heatmap', stored({ contributions }));
     // One picture, so the dots stay round whatever shape the block is and the
     // labels cannot drift away from the columns they name.
-    const box = container.querySelector('svg')?.getAttribute('viewBox');
-    // Four weeks of ten units, plus the gutter and header for the labels.
-    expect(box).toBe('0 0 66 83');
+    const box = container.querySelector('svg')?.getAttribute('viewBox') ?? '';
+    const [, , width, height] = box.split(' ').map(Number);
+    // Seven rows of ten units plus the header for the month names.
+    expect(height).toBe(83);
+    // Four weeks would leave a wide block nearly empty, so the columns spread
+    // to a readable shape rather than huddling at one end.
+    expect((width ?? 0) / (height ?? 1)).toBeCloseTo(2.9, 1);
     // Twenty days carry data; the eight outside the range are not drawn.
     expect(container.querySelectorAll('circle')).toHaveLength(20);
   });
@@ -147,6 +151,30 @@ describe('the repository views, one thing each', () => {
     // Nothing else crowds it.
     expect(container.querySelector('.github-figures')).toBeNull();
     expect(container.querySelector('.github-people')).toBeNull();
+  });
+
+  it('spreads few columns but never squeezes many', () => {
+    const boxOf = (weeks: number[][]) => {
+      const view = show(
+        'commits',
+        stored({ commitActivity: { ...full, weeks } }),
+        repoSettings,
+      );
+      const box =
+        view.container.querySelector('svg')?.getAttribute('viewBox') ?? '';
+      cleanup();
+      return box.split(' ').map(Number);
+    };
+    // A dozen weeks would leave a wide block empty, so they spread out.
+    const [, , fewWidth, height] = boxOf(
+      Array.from({ length: 12 }, () => [1, 1, 1, 1, 1, 1, 1]),
+    );
+    expect((fewWidth ?? 0) / (height ?? 1)).toBeCloseTo(2.9, 1);
+    // A full year already has columns enough; it is not spread further.
+    const [, , yearWidth] = boxOf(
+      Array.from({ length: 52 }, () => [1, 1, 1, 1, 1, 1, 1]),
+    );
+    expect(yearWidth).toBe(26 + 52 * 10);
   });
 
   it('shows the figures alone', () => {
