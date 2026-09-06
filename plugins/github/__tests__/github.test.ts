@@ -404,6 +404,68 @@ describe('what the repository field accepts', () => {
     );
   });
 
+  it('treats a repository with no commits as empty, not as pending', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/user/repos?affiliation')) {
+        return Response.json([
+          { full_name: 'Aptide-ai/api' },
+          { full_name: 'Aptide-ai/fresh' },
+        ]);
+      }
+      if (url.endsWith('/user')) return Response.json({ login: 'espen' });
+      // GitHub answers 204 with no body for a repository with no commits.
+      if (url.includes('/fresh/stats/'))
+        return new Response(null, { status: 204 });
+      return Response.json([
+        { week: 1_788_048_000, days: [0, 3, 0, 0, 0, 0, 0] },
+      ]);
+    });
+    const data = await fetchGitHub({}, withToken);
+    expect(data.commitActivity?.total).toBe(3);
+    // The empty one is counted as read, not as still being computed.
+    expect(data.commitActivity?.pending).toBe(0);
+    expect(data.commitActivity?.repos).toEqual([{ name: 'api', commits: 3 }]);
+    vi.unstubAllGlobals();
+  });
+
+  it('reports zero when every repository is readable but empty', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/user/repos?affiliation')) {
+        return Response.json([{ full_name: 'Aptide-ai/fresh' }]);
+      }
+      if (url.endsWith('/user')) return Response.json({ login: 'espen' });
+      if (url.includes('/events')) return Response.json(eventsFixture);
+      if (url.includes('/graphql')) return Response.json(contributionsFixture);
+      return new Response(null, { status: 204 });
+    });
+    const data = await fetchGitHub({}, withToken);
+    expect(data.commitActivity?.total).toBe(0);
+    expect(data.commitActivity?.weeks).toEqual([]);
+    expect(data.warnings).toEqual([]);
+    vi.unstubAllGlobals();
+  });
+
+  it('says what actually failed rather than assuming it was all the same', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (url.includes('/user/repos?affiliation')) {
+        return Response.json([
+          { full_name: 'Aptide-ai/a' },
+          { full_name: 'Aptide-ai/b' },
+        ]);
+      }
+      if (url.endsWith('/user')) return Response.json({ login: 'espen' });
+      if (url.includes('/events')) return Response.json(eventsFixture);
+      if (url.includes('/graphql')) return Response.json(contributionsFixture);
+      if (url.includes('/a/stats/')) return new Response('{}', { status: 403 });
+      return new Response('{}', { status: 202 });
+    });
+    const data = await fetchGitHub({}, withToken);
+    const warning = data.warnings.join(' ');
+    expect(warning).toMatch(/403/);
+    expect(warning).toMatch(/still working out/);
+    vi.unstubAllGlobals();
+  }, 20_000);
+
   it('fails only when no field is usable', async () => {
     await expect(fetchGitHub({ repo: 'a/b/c' }, context)).rejects.toThrow(
       /not a repository as owner\/name/,

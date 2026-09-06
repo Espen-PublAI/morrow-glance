@@ -481,6 +481,7 @@ async function request(
 
 async function readJson(response: Response): Promise<unknown> {
   const text = await readBodyWithLimit(response, MAX_RESPONSE_BYTES);
+  if (text.trim() === '') return null;
   try {
     return JSON.parse(text) as unknown;
   } catch {
@@ -534,17 +535,23 @@ async function fetchRepo(
  * One retry covers the common case; beyond that the next poll will get it,
  * five minutes being sooner than it is worth blocking a fetch for.
  */
+/** How long to wait between attempts while GitHub computes statistics. */
+const STATS_BACKOFF_MS = [1200, 2500] as const;
+
 async function requestStats(
   url: string,
   token: string | undefined,
 ): Promise<unknown> {
-  for (let attempt = 0; attempt < 2; attempt += 1) {
+  for (let attempt = 0; attempt <= STATS_BACKOFF_MS.length; attempt += 1) {
     const response = await request(url, token);
     if (response.status === 404)
       throw new Error('Repository not found on GitHub.');
+    // No content: the repository has no commits to report on.
+    if (response.status === 204) return [];
     if (response.status === 202) {
-      if (attempt === 0) {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
+      const wait = STATS_BACKOFF_MS[attempt];
+      if (wait !== undefined) {
+        await new Promise((resolve) => setTimeout(resolve, wait));
         continue;
       }
       throw new Error(
@@ -552,7 +559,8 @@ async function requestStats(
       );
     }
     if (!response.ok) throw new Error(`GitHub answered ${response.status}.`);
-    return readJson(response);
+    const body = await readJson(response);
+    return body;
   }
   throw new Error('GitHub did not return statistics.');
 }
@@ -712,6 +720,7 @@ async function fetchOwnerActivity(
     (owners.size === 1
       ? ([...owners][0] ?? '')
       : `${repos.length} repositories`);
+
   const results = await Promise.all(
     repos.map(async (ref) => {
       try {
@@ -719,27 +728,50 @@ async function fetchOwnerActivity(
           `${API}/repos/${ref.owner}/${ref.name}/stats/commit_activity`,
           token,
         );
-        return { ref, raw };
-      } catch {
-        // One repository still being computed must not lose the others.
-        return { ref, raw: null };
+        // A repository with no commits reports nothing, which is not a failure.
+        return { ref, weeks: Array.isArray(raw) ? raw : [], reason: null };
+      } catch (cause) {
+        // One repository failing must not lose the others.
+        return { ref, weeks: null, reason: messageOf(cause) };
       }
     }),
   );
-  const usable = results.filter((result) => result.raw !== null);
+  const usable = results.filter(
+    (result): result is { ref: RepoRef; weeks: unknown[]; reason: null } =>
+      result.weeks !== null,
+  );
   if (usable.length === 0) {
+    // Say what actually went wrong, rather than assuming it was the same thing
+    // for every repository.
+    const reasons = [...new Set(results.map((result) => result.reason))];
     throw new Error(
-      'GitHub is still working out the statistics for these repositories; they appear on the next refresh.',
+      reasons.filter(Boolean).join(' ') || 'GitHub returned no statistics.',
     );
   }
-  const merged = parseCommitActivity(
-    mergeCommitActivity(usable.map((result) => result.raw)),
-    now,
-  );
+
+  const weeks = mergeCommitActivity(usable.map((result) => result.weeks));
+  // Every repository readable but none with commits: a real answer, not a
+  // failure. Report zero rather than throwing.
+  const merged =
+    weeks.length > 0
+      ? parseCommitActivity(weeks, now)
+      : {
+          weeks: [],
+          total: 0,
+          last7: 0,
+          last28: 0,
+          from: '',
+          to: '',
+          repos: [],
+          pending: 0,
+          scope: '',
+        };
   const breakdown = usable
     .map((result) => ({
       name: result.ref.name,
-      commits: parseCommitActivity([...(result.raw as unknown[])], now).total,
+      commits: result.weeks.length
+        ? parseCommitActivity(result.weeks, now).total
+        : 0,
     }))
     .filter((entry) => entry.commits > 0)
     .sort((a, b) => b.commits - a.commits);
