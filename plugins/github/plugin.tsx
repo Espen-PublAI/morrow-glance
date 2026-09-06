@@ -373,10 +373,9 @@ function GraphView(props: PluginViewProps) {
     return <State label={label} text="No commit graph yet" />;
   }
   return (
-    <Frame
-      label={label}
-      meta={`${weeks.length} weeks left to right, weekdays down`}
-    >
+    // No caption: the months across the top and the weekdays down the side
+    // already say which way the grid runs.
+    <Frame label={label}>
       <DotGrid weeks={weeks} from={activity?.from} locale={props.locale} />
     </Frame>
   );
@@ -453,6 +452,9 @@ function PeopleView(props: PluginViewProps) {
             name: person.login,
             commits: person.commits,
           }));
+  // Rank here rather than trusting whatever order the data arrived in: the
+  // three fallbacks feeding this list do not all promise one.
+  byline.sort((a, b) => b.commits - a.commits);
   if (byline.length === 0) {
     return <State label={label} text="No contributors yet" />;
   }

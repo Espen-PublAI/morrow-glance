@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Morrow">
+  <!-- The mark from the Player's footer: one ring, one ink, on nothing. -->
+  <style>
+    circle { fill: none; stroke: #222220; stroke-width: 4.5 }
+    @media (prefers-color-scheme: dark) { circle { stroke: #efeee9 } }
+  </style>
+  <circle cx="16" cy="16" r="11.5" />
+</svg>

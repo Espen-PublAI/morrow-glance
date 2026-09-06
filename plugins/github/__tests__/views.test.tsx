@@ -255,6 +255,29 @@ describe('the repository views, one thing each', () => {
     expect(screen.getByText('200')).toBeTruthy();
   });
 
+  it('ranks by commits, busiest at the top', () => {
+    const { container } = show(
+      'people',
+      stored({
+        commitActivity: {
+          ...full,
+          // Given out of order, and with the largest line counts on the
+          // quietest person, to show which figure decides the ranking.
+          people: [
+            { login: 'quiet', commits: 3, added: 90_000, removed: 40_000 },
+            { login: 'busiest', commits: 200, added: 100, removed: 10 },
+            { login: 'middle', commits: 50, added: 500, removed: 50 },
+          ],
+        },
+      }),
+      repoSettings,
+    );
+    const names = [...container.querySelectorAll('.github-people strong')].map(
+      (cell) => cell.textContent,
+    );
+    expect(names).toEqual(['busiest', 'middle', 'quiet']);
+  });
+
   it('shows the people alone, one per row', () => {
     const { container } = show(
       'people',
@@ -303,7 +326,9 @@ describe('the repository views, one thing each', () => {
       repoSettings,
     );
     expect(container.querySelectorAll('circle')).toHaveLength(16 * 7);
-    expect(screen.getByText(/16 weeks left to right/)).toBeTruthy();
+    // No caption: the axis labels drawn into the graph already say which way
+    // it runs, so repeating it below is noise.
+    expect(screen.queryByText(/weeks left to right/)).toBeNull();
   });
 
   it('says what is missing rather than blanking', () => {

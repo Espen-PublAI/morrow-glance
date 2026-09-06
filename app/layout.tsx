@@ -24,8 +24,9 @@ export const metadata: Metadata = {
   metadataBase: publicOrigin(),
   title,
   description,
-  // No favicon yet; an empty data URL keeps browsers from requesting /favicon.ico.
-  icons: { icon: 'data:,' },
+  // Without one a browser invents a placeholder from the domain, so ship the
+  // Player's own footer mark: one ring, following the reader's light or dark.
+  icons: { icon: '/icon.svg' },
   openGraph: {
     title,
     description,
