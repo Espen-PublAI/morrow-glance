@@ -36,7 +36,7 @@ function stored(over: Partial<GitHubData>): BlockData {
       commitActivity: null,
       topContributors: null,
       warnings: [],
-      authenticated: true,
+      hasToken: true,
       fetchedAt: now.toISOString(),
       ...over,
     },
@@ -91,7 +91,7 @@ describe('contributions view', () => {
   });
 
   it('asks for a token when there is none, and explains a token that cannot read them', () => {
-    show('heatmap', stored({ authenticated: false }));
+    show('heatmap', stored({ hasToken: false }));
     expect(screen.getByText(/need a token/i)).toBeTruthy();
     cleanup();
     show(
@@ -267,7 +267,7 @@ describe('activity and repository views', () => {
   it('explains what is missing rather than going blank', () => {
     show('repo', undefined, { user: '', repo: '' });
     expect(
-      screen.getByText(/Enter a GitHub username or a repository/),
+      screen.getByText(/Add a token, or a GitHub username or repository/),
     ).toBeTruthy();
     cleanup();
     show('activity', {

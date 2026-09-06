@@ -101,12 +101,14 @@ function ready(
   const { label: custom, user, repo } = readLabels(props);
   const label = custom || fallbackLabel;
   const { data } = props;
-  if (!user && !repo) {
+  // With a token the server resolves both from the token itself, so only say
+  // this when nothing was typed and nothing came back either.
+  if (!user && !repo && !data) {
     return {
       state: (
         <State
           label={label}
-          text="Enter a GitHub username or a repository in the block settings"
+          text="Add a token, or a GitHub username or repository, in the block settings"
         />
       ),
     };
@@ -139,7 +141,7 @@ function HeatmapView(props: PluginViewProps) {
       <State
         label={label}
         text={
-          data.authenticated
+          data.hasToken
             ? (data.warnings.find((w) => w.startsWith('Contributions')) ??
               'No contribution data')
             : 'Contributions need a token: add one in the block settings'
@@ -180,7 +182,7 @@ function ActivityView(props: PluginViewProps) {
   return (
     <Frame
       label={label}
-      meta={data.authenticated ? undefined : 'Public activity only'}
+      meta={data.hasToken ? undefined : 'Public activity only'}
     >
       <ol className="github-events">
         {events.slice(0, EVENT_ROWS).map((event) => (

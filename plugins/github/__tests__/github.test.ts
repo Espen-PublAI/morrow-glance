@@ -759,7 +759,7 @@ describe('stored data guard', () => {
         events: [],
         contributions: null,
         warnings: [],
-        authenticated: false,
+        hasToken: false,
         fetchedAt: 't',
       }),
     ).toBe(true);

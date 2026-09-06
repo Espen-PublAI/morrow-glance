@@ -110,7 +110,8 @@ export interface GitHubData {
   topContributors: RepoContributors | null;
   /** Parts that were asked for but could not be fetched, in plain language. */
   warnings: string[];
-  authenticated: boolean;
+  /** Whether a token was supplied, not whether GitHub accepted it. */
+  hasToken: boolean;
   fetchedAt: string;
 }
 
@@ -849,7 +850,7 @@ export async function fetchGitHub(
     commitActivity: null,
     topContributors: null,
     warnings: fieldWarnings,
-    authenticated: Boolean(token),
+    hasToken: Boolean(token),
     fetchedAt: context.now.toISOString(),
   };
   const attempt = async (label: string, run: () => Promise<void>) => {
