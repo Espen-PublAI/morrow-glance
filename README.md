@@ -9,7 +9,7 @@ Morrow keeps content, layout, and output separate:
 - **Morrow Plugins** provide content and views without coupling integrations to the Player.
 - **Morrow Server** stores one shared configuration in Cloudflare D1 and serves it to Admin and every Player.
 
-![The Morrow Player showing the time in Oslo and Ho Chi Minh City, a world map, and a weather forecast](docs/screenshots/player-white.png)
+![The Morrow Player showing world clocks for Oslo and Tokyo, a week of weather, and a repository's commit activity](docs/screenshots/player-white.png)
 
 Self-host it with `docker compose up`, or deploy it to Cloudflare Workers. Storage is SQLite or D1 behind one small adapter, so the same code runs either way.
 

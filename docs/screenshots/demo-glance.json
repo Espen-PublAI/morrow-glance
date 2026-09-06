@@ -1,0 +1,121 @@
+{
+  "name": "Morrow",
+  "location": "Oslo",
+  "timeZone": "Europe/Oslo",
+  "color": "white",
+  "rotationSeconds": 30,
+  "defaultScreenId": "browser",
+  "screens": [
+    {
+      "id": "browser",
+      "name": "Browser · adaptive",
+      "width": 1920,
+      "height": 1080,
+      "refreshSeconds": 30
+    }
+  ],
+  "pages": [
+    {
+      "id": "glance",
+      "label": "Glance",
+      "layout": { "columns": 12, "rows": 5 },
+      "blocks": [
+        {
+          "id": "clock-oslo",
+          "plugin": "morrow.clock",
+          "view": "map",
+          "column": 1,
+          "row": 1,
+          "span": 4,
+          "rowSpan": 2,
+          "settings": {
+            "city": "Oslo",
+            "timeZone": "Europe/Oslo",
+            "coordinates": "59.9139,10.7522",
+            "label": ""
+          }
+        },
+        {
+          "id": "clock-tokyo",
+          "plugin": "morrow.clock",
+          "view": "map",
+          "column": 5,
+          "row": 1,
+          "span": 4,
+          "rowSpan": 2,
+          "settings": {
+            "city": "Tokyo",
+            "timeZone": "Asia/Tokyo",
+            "coordinates": "35.6762,139.6503",
+            "label": ""
+          }
+        },
+        {
+          "id": "weather-oslo",
+          "plugin": "morrow.weather",
+          "view": "week",
+          "column": 9,
+          "row": 1,
+          "span": 4,
+          "rowSpan": 2,
+          "settings": {
+            "city": "Oslo",
+            "timeZone": "Europe/Oslo",
+            "coordinates": "59.9139,10.7522",
+            "units": "metric",
+            "label": ""
+          }
+        },
+        {
+          "id": "gh-commits",
+          "plugin": "morrow.github",
+          "view": "commits",
+          "column": 1,
+          "row": 3,
+          "span": 7,
+          "rowSpan": 3,
+          "settings": {
+            "repo": "facebook/react",
+            "user": "",
+            "windowDays": "",
+            "label": ""
+          }
+        },
+        {
+          "id": "gh-figures",
+          "plugin": "morrow.github",
+          "view": "figures",
+          "column": 8,
+          "row": 3,
+          "span": 5,
+          "rowSpan": 2,
+          "settings": {
+            "repo": "facebook/react",
+            "user": "",
+            "windowDays": "",
+            "label": ""
+          }
+        },
+        {
+          "id": "gh-repo",
+          "plugin": "morrow.github",
+          "view": "repo",
+          "column": 8,
+          "row": 5,
+          "span": 5,
+          "rowSpan": 1,
+          "settings": {
+            "repo": "facebook/react",
+            "user": "",
+            "windowDays": "",
+            "label": ""
+          }
+        }
+      ]
+    }
+  ],
+  "disabledPlugins": [],
+  "footer": { "date": true, "location": true, "time": true },
+  "hourFormat": "24h",
+  "locale": "en-GB"
+}
