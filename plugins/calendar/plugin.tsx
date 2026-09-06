@@ -153,7 +153,6 @@ export const plugin = definePlugin({
     name: 'Calendar',
     version: '0.1.0',
     description: 'A Microsoft 365 calendar: room sign or the day at a glance.',
-    refreshSeconds: 300,
     views: [
       { id: 'room', name: 'Room sign' },
       { id: 'today', name: 'Today' },

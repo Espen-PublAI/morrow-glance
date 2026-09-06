@@ -30,7 +30,7 @@ vi.mock('@/lib/morrow/client', async (importOriginal) => {
   };
 });
 
-const { MorrowDisplay } = await import('@/components/morrow-display');
+const { MorrowDisplay } = await import('@/components/player/morrow-display');
 
 const page = (id: string, label: string) => ({
   id,
@@ -122,6 +122,20 @@ describe('first paint', () => {
     expect(
       screen.getByRole('button', { name: /pause rotation/i }),
     ).toBeTruthy();
+  });
+});
+
+describe('a page with nothing on it', () => {
+  it('says where to add blocks, because that is every clean install', async () => {
+    fetchConfig.mockResolvedValue({
+      config: config(),
+      updatedAt: 't',
+      staleClient: false,
+    });
+    render(<MorrowDisplay initialConfig={config()} />);
+    await settle();
+    expect(screen.getByText(/this page is empty/i)).toBeTruthy();
+    expect(screen.getByRole('link', { name: /admin/i })).toBeTruthy();
   });
 });
 

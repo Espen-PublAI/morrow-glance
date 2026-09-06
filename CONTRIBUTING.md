@@ -60,8 +60,11 @@ app/
   api/data              Latest block data; refreshes stale poll sources
   api/webhooks/[id]     Receives pushed JSON for a webhook block
 components/
-  morrow-display.tsx    Player: polling, rotation, gestures
-  glance-renderer.tsx   One page of blocks on a CSS grid (Player + Admin)
+  player/
+    morrow-display.tsx  The Player, layout only
+    use-glance-sync.ts  What the Player learns from the server, and when
+    use-page-rotation.ts Which page is on screen, and how it changes
+    glance-renderer.tsx One page of blocks on a CSS grid
   admin/
     use-admin-state.ts  Everything Admin knows and can do, with no markup
     admin-console.tsx   The layout, which renders what the hook returns

@@ -1,14 +1,15 @@
 import type { CSSProperties } from 'react';
 
 import { sharedEdges } from '@/lib/morrow/layout';
-import type {
-  BlockData,
-  GlancePage,
-  MorrowHourFormat,
+import {
+  blockViewProps,
+  type BlockData,
+  type DisplayContext,
+  type GlancePage,
 } from '@/lib/morrow/types';
 import { pluginRegistry } from '@/plugins';
 
-/** Renders one page of blocks onto a CSS grid. Shared by Player and Admin. */
+/** Renders one page of blocks onto a CSS grid. */
 
 interface LayoutStyle extends CSSProperties {
   '--columns': number;
@@ -22,25 +23,38 @@ interface BlockStyle extends CSSProperties {
   '--row-span': number;
 }
 
+/**
+ * A page with nothing on it. Every clean install starts here, so this is the
+ * first thing anyone sees; it says where to go next and then gets out of the
+ * way. Quiet enough to leave on a wall.
+ */
+function EmptyPage() {
+  return (
+    <div className="glance-empty">
+      <p>This page is empty.</p>
+      <p className="glance-empty-hint">
+        {/* A plain link on purpose: a wall screen should never prefetch the
+            Admin bundle, and leaving the Player is a real navigation. */}
+        {/* eslint-disable-next-line next/no-html-link-for-pages */}
+        Add blocks in <a href="/admin">Admin</a>.
+      </p>
+    </div>
+  );
+}
+
 export function GlanceRenderer({
   page,
-  now,
+  display,
   blockData,
-  timeZone,
-  hourFormat,
-  locale,
 }: {
   page: GlancePage;
-  now: Date;
+  /** Time, timezone, and writing conventions, passed to every view. */
+  display: DisplayContext;
   /** Latest data per block id, for blocks with a data source. */
   blockData?: Record<string, BlockData>;
-  /** The display's timezone, passed to every view. */
-  timeZone: string;
-  /** How the display writes times, passed to every view. */
-  hourFormat?: MorrowHourFormat;
-  /** The language the display writes in, passed to every view. */
-  locale?: string;
 }) {
+  if (page.blocks.length === 0) return <EmptyPage />;
+
   const layoutStyle: LayoutStyle = {
     '--columns': page.layout.columns,
     '--rows': page.layout.rows,
@@ -50,14 +64,10 @@ export function GlanceRenderer({
     <div className="glance-grid" style={layoutStyle}>
       {page.blocks.map((block) => {
         const plugin = pluginRegistry[block.plugin];
-        const content = plugin?.render(block.view, {
-          now,
-          settings: block.settings ?? {},
-          data: blockData?.[block.id],
-          timeZone,
-          hourFormat,
-          locale,
-        });
+        const content = plugin?.render(
+          block.view,
+          blockViewProps(block, display, blockData),
+        );
         const style: BlockStyle = {
           '--column': block.column,
           '--span': block.span,

@@ -307,6 +307,31 @@
   color: var(--admin-muted);
   font-size: 10px;
 }
+/* Page grid: two small steppers, sized so they read as one setting. */
+.grid-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--admin-muted);
+  font-size: 10px;
+}
+.grid-control input {
+  width: 42px;
+  padding: 3px 4px;
+  border: 1px solid var(--admin-line);
+  border-radius: 4px;
+  background: var(--admin-panel);
+  color: var(--admin-text);
+  font-size: 10px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.grid-control input:focus-visible {
+  outline: 1px solid var(--admin-text);
+}
+.grid-control small {
+  font-size: 10px;
+}
 .quiet-action {
   margin-left: auto;
   display: inline-flex;
@@ -331,10 +356,15 @@
   display: grid;
   place-items: center;
   padding: clamp(22px, 4vw, 58px);
+  /* A size container, so the canvas can fit itself to the height as well as
+     the width. Without that an upright screen would run off the page. */
+  container-type: size;
 }
 .admin-canvas {
-  width: min(100%, 1100px);
-  aspect-ratio: 16 / 10;
+  /* The shape of the screen being designed for, never wider or taller than
+     the space available. `--admin-aspect` is width ÷ height. */
+  width: min(100cqw, 1100px, calc(100cqh * var(--admin-aspect, 1.6)));
+  aspect-ratio: var(--admin-aspect, 1.6);
   position: relative;
   display: grid;
   grid-template-columns: repeat(var(--admin-columns), minmax(0, 1fr));
@@ -760,11 +790,15 @@
   flex: 1;
   min-width: 0;
 }
-.row-delete {
-  position: absolute;
-  right: 6px;
-  width: 24px;
-  height: 24px;
+/*
+ * Reorder and delete sit in the row rather than over it, so they never cover
+ * a page name. They hold their space at all times and only fade in, so the
+ * list does not shift under the pointer.
+ */
+.row-action {
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
   display: grid;
   place-items: center;
   border: 0;
@@ -775,20 +809,27 @@
   cursor: pointer;
   transition: opacity 0.12s;
 }
-.row-delete svg {
+.row-action svg {
   width: 12px;
 }
-.page-row-wrap:hover .row-delete,
-.page-row-wrap:focus-within .row-delete {
+.page-row-wrap:hover .row-action,
+.page-row-wrap:focus-within .row-action {
   opacity: 1;
+}
+.row-action:hover {
+  background: var(--admin-soft);
+  color: var(--admin-text);
+}
+.row-action:disabled {
+  pointer-events: none;
+}
+.page-row-wrap:hover .row-action:disabled,
+.page-row-wrap:focus-within .row-action:disabled {
+  opacity: 0.22;
 }
 .row-delete:hover {
   background: #f3e3e1;
   color: #8d2f28;
-}
-.row-delete:disabled {
-  opacity: 0;
-  pointer-events: none;
 }
 
 /* Selected block: its chip and a remove control share one toolbar top-right. */

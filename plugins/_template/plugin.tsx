@@ -29,7 +29,6 @@ export const plugin = definePlugin({
     name: 'Example',
     version: '0.1.0',
     description: 'One sentence shown in the plugin library.',
-    refreshSeconds: 0,
     views: [{ id: 'default', name: 'Default' }],
     settings: [
       {

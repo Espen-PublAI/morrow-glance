@@ -1,4 +1,4 @@
-import { MorrowDisplay } from '@/components/morrow-display';
+import { MorrowDisplay } from '@/components/player/morrow-display';
 import { loadMorrowConfigOrFallback } from '@/db/morrow-config';
 
 // The configuration lives in D1 and changes at runtime; never prerender.

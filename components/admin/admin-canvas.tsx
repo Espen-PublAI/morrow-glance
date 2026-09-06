@@ -12,17 +12,21 @@ import { useEffect, useRef } from 'react';
 import { PluginIcon } from '@/components/admin/plugin-icon';
 import type { DragGhost, DragKind } from '@/components/admin/use-canvas-drag';
 import { sharedEdges } from '@/lib/morrow/layout';
-import type {
-  BlockData,
-  GlanceBlock,
-  GlancePage,
-  MorrowColor,
-  PluginRuntime,
+import {
+  blockViewProps,
+  type BlockData,
+  type DisplayContext,
+  type GlanceBlock,
+  type GlancePage,
+  type MorrowColor,
+  type PluginRuntime,
 } from '@/lib/morrow/types';
 
 interface GridStyle extends CSSProperties {
   '--admin-columns': number;
   '--admin-rows': number;
+  /** Width ÷ height of the screen being previewed. */
+  '--admin-aspect': number;
 }
 
 interface CellStyle extends CSSProperties {
@@ -47,9 +51,15 @@ interface AdminCanvasProps {
   canvasRef: RefObject<HTMLDivElement | null>;
   page: GlancePage;
   color: MorrowColor;
-  now: Date;
+  /** Shape of the screen this page is being designed for, as width ÷ height. */
+  aspect: number;
+  /**
+   * The same context the Player passes its views, so the canvas is a preview
+   * rather than an approximation: a display set to 12-hour Norwegian shows
+   * 12-hour Norwegian here too.
+   */
+  display: DisplayContext;
   blockData: Record<string, BlockData>;
-  timeZone: string;
   registry: Record<string, PluginRuntime>;
   selectedBlockId: string | null;
   ghost: DragGhost | null;
@@ -80,9 +90,9 @@ export function AdminCanvas({
   canvasRef,
   page,
   color,
-  now,
+  aspect,
+  display,
   blockData,
-  timeZone,
   registry,
   selectedBlockId,
   ghost,
@@ -99,6 +109,7 @@ export function AdminCanvas({
   const gridStyle: GridStyle = {
     '--admin-columns': page.layout.columns,
     '--admin-rows': page.layout.rows,
+    '--admin-aspect': aspect,
   };
   const showEmptyState = page.blocks.length === 0 && !ghost;
   const wrapRef = useRef<HTMLDivElement | null>(null);
@@ -166,12 +177,10 @@ export function AdminCanvas({
                 {plugin?.manifest.name ?? block.plugin}
               </span>
               <div className="admin-block-content">
-                {plugin?.render(block.view, {
-                  now,
-                  settings: block.settings ?? {},
-                  data: blockData[block.id],
-                  timeZone,
-                })}
+                {plugin?.render(
+                  block.view,
+                  blockViewProps(block, display, blockData),
+                )}
               </div>
               {selected && (
                 <span

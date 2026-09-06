@@ -43,7 +43,6 @@ export const plugin = definePlugin({
     name: 'Value',
     version: '0.1.0',
     description: 'One number or word from a polled URL or a webhook.',
-    refreshSeconds: 60,
     views: [{ id: 'big', name: 'Big value' }],
     settings: [
       {
