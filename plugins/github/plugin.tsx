@@ -450,7 +450,7 @@ function PeopleView(props: PluginViewProps) {
       label={label}
       meta={
         developers.length > 0
-          ? `commits in the last ${days} days`
+          ? `commits and lines written, last ${days} days`
           : 'commits, all time'
       }
     >

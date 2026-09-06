@@ -40,9 +40,18 @@ this week" reads as "pull requests merged this week", and someone whose
 branches carry twenty commits looks identical to someone whose carry one.
 
 So the people view also shows **lines added and removed** over the same
-window, from GitHub's weekly contributor statistics. Lines survive squashing.
-Neither number is a measure of effort, and a large deletion is as often good
-housekeeping as it is lost work, but the two together say more than either.
+window. Neither number is a measure of effort, and a large deletion is as
+often good housekeeping as it is lost work, but the two together say more
+than either.
+
+Read the lines as **written, not net**. They are summed per commit, so a
+branch that rewrites the same file five times counts all five. Where a
+repository squash-merges, a pull request is one commit and the two coincide;
+where it merges with full history, the figure runs ahead of the pull request's
+own diff, and by the same factor as the commit count does. If the two people
+at the top of a board show roughly double the commits _and_ double the lines
+of the two below, that is a difference in merge strategy showing through, not
+in output.
 
 Lines come from the commit history through GraphQL, which reports additions
 and deletions on each commit. That needs a token, but it covers an exact

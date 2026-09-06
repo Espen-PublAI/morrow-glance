@@ -222,7 +222,9 @@ describe('the repository views, one thing each', () => {
     );
     expect(screen.getByText('ada')).toBeTruthy();
     expect(screen.getByText('42')).toBeTruthy();
-    expect(screen.getByText(/commits in the last 28 days/)).toBeTruthy();
+    expect(
+      screen.getByText(/commits and lines written, last 28 days/),
+    ).toBeTruthy();
     expect(container.querySelector('.github-heatmap')).toBeNull();
     expect(container.querySelector('.github-figures')).toBeNull();
   });
