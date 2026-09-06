@@ -117,7 +117,7 @@ else blank. That covers every repository the token can read.
 
 ## A whole organisation
 
-Put a bare name in the repository field, such as `Aptide-ai`, and the commit
+Put a bare name in the repository field, such as `facebook`, and the commit
 activity view covers everything that owner has rather than one repository. It
 lists the owner's ten most recently pushed repositories, adds their weekly
 commits together on the week each week starts, and shows the busiest

@@ -73,9 +73,9 @@ describe('what the repository field accepts', () => {
   };
 
   it('reads a bare name as the whole account or organisation', () => {
-    expect(parseOwner('Aptide-ai')).toBe('Aptide-ai');
+    expect(parseOwner('example-org')).toBe('example-org');
     expect(parseOwner(' @octocat ')).toBe('octocat');
-    expect(parseOwner('https://github.com/Aptide-ai/')).toBe('Aptide-ai');
+    expect(parseOwner('https://github.com/example-org/')).toBe('example-org');
     // Anything with a slash is a repository, not an owner.
     expect(parseOwner('github/docs')).toBeNull();
     expect(parseOwner('has space')).toBeNull();
@@ -85,25 +85,25 @@ describe('what the repository field accepts', () => {
     const calls: string[] = [];
     vi.stubGlobal('fetch', async (url: string) => {
       calls.push(url);
-      if (url.includes('/orgs/Aptide-ai/repos')) {
+      if (url.includes('/orgs/example-org/repos')) {
         return Response.json([
-          { full_name: 'Aptide-ai/api' },
-          { full_name: 'Aptide-ai/web' },
+          { full_name: 'example-org/api' },
+          { full_name: 'example-org/web' },
         ]);
       }
-      if (url.includes('/repos/Aptide-ai/api/stats/commit_activity')) {
+      if (url.includes('/repos/example-org/api/stats/commit_activity')) {
         return Response.json([
           { week: 1_788_048_000, days: [1, 0, 0, 0, 0, 0, 0] },
         ]);
       }
-      if (url.includes('/repos/Aptide-ai/web/stats/commit_activity')) {
+      if (url.includes('/repos/example-org/web/stats/commit_activity')) {
         return Response.json([
           { week: 1_788_048_000, days: [0, 2, 0, 0, 0, 0, 0] },
         ]);
       }
       throw new Error(`unexpected ${url}`);
     });
-    const data = await fetchGitHub({ repo: 'Aptide-ai' }, context);
+    const data = await fetchGitHub({ repo: 'example-org' }, context);
     // Weeks are added together on the week they start, not by position.
     expect(data.commitActivity?.weeks[0]).toEqual([1, 2, 0, 0, 0, 0, 0]);
     expect(data.commitActivity?.total).toBe(3);
@@ -120,10 +120,10 @@ describe('what the repository field accepts', () => {
 
   it('keeps the repositories it could read and counts the rest as pending', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) {
+      if (url.includes('/orgs/example-org/repos')) {
         return Response.json([
-          { full_name: 'Aptide-ai/api' },
-          { full_name: 'Aptide-ai/web' },
+          { full_name: 'example-org/api' },
+          { full_name: 'example-org/web' },
         ]);
       }
       // Statistics never materialise and the commit list is refused too.
@@ -135,7 +135,7 @@ describe('what the repository field accepts', () => {
         { week: 1_788_048_000, days: [0, 2, 0, 0, 0, 0, 0] },
       ]);
     });
-    const data = await fetchGitHub({ repo: 'Aptide-ai' }, context);
+    const data = await fetchGitHub({ repo: 'example-org' }, context);
     expect(data.commitActivity?.total).toBe(2);
     expect(data.commitActivity?.pending).toBe(1);
     vi.unstubAllGlobals();
@@ -164,13 +164,13 @@ describe('what the repository field accepts', () => {
   it('finds a grant that only shows up in the token\u2019s own repository list', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
       // The organisation endpoint sees nothing, but the token does.
-      if (url.includes('/orgs/Aptide-ai/repos')) return Response.json([]);
-      if (url.includes('/users/Aptide-ai/repos')) {
+      if (url.includes('/orgs/example-org/repos')) return Response.json([]);
+      if (url.includes('/users/example-org/repos')) {
         return new Response('[]', { status: 404 });
       }
       if (url.includes('/user/repos')) {
         return Response.json([
-          { full_name: 'Aptide-ai/api' },
+          { full_name: 'example-org/api' },
           { full_name: 'someone-else/other' },
         ]);
       }
@@ -178,7 +178,7 @@ describe('what the repository field accepts', () => {
         { week: 1_788_048_000, days: [5, 0, 0, 0, 0, 0, 0] },
       ]);
     });
-    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    const data = await fetchGitHub({ repo: 'example-org' }, withToken);
     // Only the wanted owner's repositories are aggregated.
     expect(data.commitActivity?.repos).toEqual([{ name: 'api', commits: 5 }]);
     vi.unstubAllGlobals();
@@ -187,22 +187,22 @@ describe('what the repository field accepts', () => {
   it('names which of the four causes it is', () => {
     // A fine-grained token that reads other repositories is scoped wrongly.
     expect(
-      describeTokenProblem('Aptide-ai', { scopes: null, seesAnyRepo: true }),
+      describeTokenProblem('example-org', { scopes: null, seesAnyRepo: true }),
     ).toMatch(/resource owner is most likely a personal account/);
     // One that reads nothing anywhere is usually waiting for approval.
     expect(
-      describeTokenProblem('Aptide-ai', { scopes: null, seesAnyRepo: false }),
+      describeTokenProblem('example-org', { scopes: null, seesAnyRepo: false }),
     ).toMatch(/not approved it yet|Pending requests/);
     // A classic token without the scope cannot read private repositories.
     expect(
-      describeTokenProblem('Aptide-ai', {
+      describeTokenProblem('example-org', {
         scopes: ['read:user'],
         seesAnyRepo: true,
       }),
     ).toMatch(/does not have the "repo" scope/);
     // With the scope, the likely cause is single sign-on.
     expect(
-      describeTokenProblem('Aptide-ai', {
+      describeTokenProblem('example-org', {
         scopes: ['repo'],
         seesAnyRepo: true,
       }),
@@ -213,7 +213,7 @@ describe('what the repository field accepts', () => {
     const calls: string[] = [];
     vi.stubGlobal('fetch', async (url: string) => {
       calls.push(url);
-      if (url.includes('/orgs/Aptide-ai/repos')) return Response.json([]);
+      if (url.includes('/orgs/example-org/repos')) return Response.json([]);
       if (url.includes('/user/repos?affiliation')) return Response.json([]);
       // The diagnostic probe: a fine-grained token that can read something.
       if (url.includes('/user/repos?per_page=1')) {
@@ -221,9 +221,9 @@ describe('what the repository field accepts', () => {
       }
       return new Response('[]', { status: 404 });
     });
-    await expect(fetchGitHub({ repo: 'Aptide-ai' }, withToken)).rejects.toThrow(
-      /resource owner is most likely a personal account/,
-    );
+    await expect(
+      fetchGitHub({ repo: 'example-org' }, withToken),
+    ).rejects.toThrow(/resource owner is most likely a personal account/);
     // The probe runs only after the ordinary lookups have failed.
     expect(
       calls.filter((url) => url.includes('/user/repos?per_page=1')),
@@ -233,7 +233,7 @@ describe('what the repository field accepts', () => {
 
   it('reads a classic token\u2019s scopes from the response header', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) return Response.json([]);
+      if (url.includes('/orgs/example-org/repos')) return Response.json([]);
       if (url.includes('/user/repos?affiliation')) return Response.json([]);
       if (url.includes('/user/repos?per_page=1')) {
         return new Response(JSON.stringify([{ full_name: 'espen/other' }]), {
@@ -246,21 +246,21 @@ describe('what the repository field accepts', () => {
       }
       return new Response('[]', { status: 404 });
     });
-    await expect(fetchGitHub({ repo: 'Aptide-ai' }, withToken)).rejects.toThrow(
-      /single sign-on/,
-    );
+    await expect(
+      fetchGitHub({ repo: 'example-org' }, withToken),
+    ).rejects.toThrow(/single sign-on/);
     vi.unstubAllGlobals();
   });
 
   it('explains what a token needs when it can read nothing', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) return Response.json([]);
+      if (url.includes('/orgs/example-org/repos')) return Response.json([]);
       if (url.includes('/user/repos')) return Response.json([]);
       return new Response('[]', { status: 404 });
     });
-    await expect(fetchGitHub({ repo: 'Aptide-ai' }, withToken)).rejects.toThrow(
-      /fine-grained token can read no repositories at all/,
-    );
+    await expect(
+      fetchGitHub({ repo: 'example-org' }, withToken),
+    ).rejects.toThrow(/fine-grained token can read no repositories at all/);
     vi.unstubAllGlobals();
   });
 
@@ -296,8 +296,8 @@ describe('what the repository field accepts', () => {
         return Response.json({ login: 'Espen-PublAI' });
       if (url.includes('/user/repos?affiliation')) {
         return Response.json([
-          { full_name: 'Aptide-ai/api' },
-          { full_name: 'Aptide-ai/web' },
+          { full_name: 'example-org/api' },
+          { full_name: 'example-org/web' },
         ]);
       }
       if (url.includes('/stats/commit_activity')) {
@@ -319,7 +319,7 @@ describe('what the repository field accepts', () => {
     const data = await fetchGitHub({}, withToken);
     expect(data.commitActivity?.total).toBe(2);
     // Every repository the token reads, and all of one owner, so it is named.
-    expect(data.commitActivity?.scope).toBe('Aptide-ai');
+    expect(data.commitActivity?.scope).toBe('example-org');
     expect(data.commitActivity?.repos.map((repo) => repo.name).sort()).toEqual([
       'api',
       'web',
@@ -332,7 +332,7 @@ describe('what the repository field accepts', () => {
       if (url.endsWith('/user')) return Response.json({ login: 'espen' });
       if (url.includes('/user/repos?affiliation')) {
         return Response.json([
-          { full_name: 'Aptide-ai/api' },
+          { full_name: 'example-org/api' },
           { full_name: 'espen/glance' },
         ]);
       }
@@ -412,8 +412,10 @@ describe('what the repository field accepts', () => {
       vi.unstubAllGlobals();
       return data.commitActivity?.scope;
     };
-    expect(await scopeOf(['Aptide-ai/api', 'Aptide-ai/web'])).toBe('Aptide-ai');
-    expect(await scopeOf(['Aptide-ai/api', 'espen/glance'])).toBe(
+    expect(await scopeOf(['example-org/api', 'example-org/web'])).toBe(
+      'example-org',
+    );
+    expect(await scopeOf(['example-org/api', 'espen/glance'])).toBe(
       '2 repositories',
     );
   });
@@ -422,8 +424,8 @@ describe('what the repository field accepts', () => {
     vi.stubGlobal('fetch', async (url: string) => {
       if (url.includes('/user/repos?affiliation')) {
         return Response.json([
-          { full_name: 'Aptide-ai/api' },
-          { full_name: 'Aptide-ai/fresh' },
+          { full_name: 'example-org/api' },
+          { full_name: 'example-org/fresh' },
         ]);
       }
       if (url.endsWith('/user')) return Response.json({ login: 'espen' });
@@ -445,7 +447,7 @@ describe('what the repository field accepts', () => {
   it('reports zero when every repository is readable but empty', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
       if (url.includes('/user/repos?affiliation')) {
-        return Response.json([{ full_name: 'Aptide-ai/fresh' }]);
+        return Response.json([{ full_name: 'example-org/fresh' }]);
       }
       if (url.endsWith('/user')) return Response.json({ login: 'espen' });
       if (url.includes('/events')) return Response.json(eventsFixture);
@@ -464,8 +466,8 @@ describe('what the repository field accepts', () => {
     vi.stubGlobal('fetch', async (url: string) => {
       if (url.includes('/user/repos?affiliation')) {
         return Response.json([
-          { full_name: 'Aptide-ai/a' },
-          { full_name: 'Aptide-ai/b' },
+          { full_name: 'example-org/a' },
+          { full_name: 'example-org/b' },
         ]);
       }
       if (url.endsWith('/user')) return Response.json({ login: 'espen' });
@@ -484,10 +486,10 @@ describe('what the repository field accepts', () => {
   it('counts recent commits per person across every repository', async () => {
     const now = new Date('2026-09-06T12:00:00Z');
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) {
+      if (url.includes('/orgs/example-org/repos')) {
         return Response.json([
-          { full_name: 'Aptide-ai/api' },
-          { full_name: 'Aptide-ai/web' },
+          { full_name: 'example-org/api' },
+          { full_name: 'example-org/web' },
         ]);
       }
       if (url.includes('/stats/commit_activity')) {
@@ -533,7 +535,7 @@ describe('what the repository field accepts', () => {
       return Response.json([]);
     });
     const data = await fetchGitHub(
-      { repo: 'Aptide-ai' },
+      { repo: 'example-org' },
       { ...withToken, now },
     );
     expect(data.commitActivity?.peopleDays).toBe(28);
@@ -548,8 +550,8 @@ describe('what the repository field accepts', () => {
 
   it('still reports the graph when no commit list can be read', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) {
-        return Response.json([{ full_name: 'Aptide-ai/api' }]);
+      if (url.includes('/orgs/example-org/repos')) {
+        return Response.json([{ full_name: 'example-org/api' }]);
       }
       if (url.includes('/stats/commit_activity')) {
         return Response.json([
@@ -559,7 +561,7 @@ describe('what the repository field accepts', () => {
       if (url.includes('/commits')) return new Response('{}', { status: 500 });
       return Response.json([]);
     });
-    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    const data = await fetchGitHub({ repo: 'example-org' }, withToken);
     expect(data.commitActivity?.total).toBe(4);
     expect(data.commitActivity?.people).toEqual([]);
     expect(data.warnings.filter((w) => !w.startsWith('Lines:'))).toEqual([]);
@@ -578,8 +580,8 @@ describe('what the repository field accepts', () => {
       },
     }));
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) {
-        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      if (url.includes('/orgs/example-org/repos')) {
+        return Response.json([{ full_name: 'example-org/api' }]);
       }
       if (url.includes('/stats/commit_activity')) {
         return new Response('{}', { status: 202 });
@@ -588,7 +590,7 @@ describe('what the repository field accepts', () => {
       return Response.json([]);
     });
     const data = await fetchGitHub(
-      { repo: 'Aptide-ai' },
+      { repo: 'example-org' },
       { ...withToken, now },
     );
     const activity = data.commitActivity;
@@ -605,8 +607,8 @@ describe('what the repository field accepts', () => {
 
   it('reports a real year when the statistics endpoint answers', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) {
-        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      if (url.includes('/orgs/example-org/repos')) {
+        return Response.json([{ full_name: 'example-org/api' }]);
       }
       if (url.includes('/stats/commit_activity')) {
         return Response.json(commitActivityFixture);
@@ -614,17 +616,17 @@ describe('what the repository field accepts', () => {
       if (url.includes('/commits')) return Response.json([]);
       return Response.json([]);
     });
-    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    const data = await fetchGitHub({ repo: 'example-org' }, withToken);
     expect(data.commitActivity?.wholeYear).toBe(true);
     vi.unstubAllGlobals();
   }, 20_000);
 
   it('counts every commit a repository has ever had, exactly', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) {
+      if (url.includes('/orgs/example-org/repos')) {
         return Response.json([
-          { full_name: 'Aptide-ai/api' },
-          { full_name: 'Aptide-ai/web' },
+          { full_name: 'example-org/api' },
+          { full_name: 'example-org/web' },
         ]);
       }
       if (url.includes('/stats/commit_activity')) {
@@ -653,17 +655,17 @@ describe('what the repository field accepts', () => {
       }
       return Response.json([]);
     });
-    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    const data = await fetchGitHub({ repo: 'example-org' }, withToken);
     expect(data.commitActivity?.allTime).toBe(1234);
     vi.unstubAllGlobals();
   }, 20_000);
 
   it('offers no total rather than a partial one', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) {
+      if (url.includes('/orgs/example-org/repos')) {
         return Response.json([
-          { full_name: 'Aptide-ai/api' },
-          { full_name: 'Aptide-ai/web' },
+          { full_name: 'example-org/api' },
+          { full_name: 'example-org/web' },
         ]);
       }
       if (url.includes('/stats/commit_activity')) {
@@ -686,7 +688,7 @@ describe('what the repository field accepts', () => {
       }
       return Response.json([]);
     });
-    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    const data = await fetchGitHub({ repo: 'example-org' }, withToken);
     expect(data.commitActivity?.allTime).toBeNull();
     vi.unstubAllGlobals();
   }, 20_000);
@@ -721,8 +723,8 @@ describe('what the repository field accepts', () => {
         (Date.UTC(2026, 8, 6) - weeksAgo * 7 * 86_400_000) / 1000 / 86_400,
       ) * 86_400;
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) {
-        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      if (url.includes('/orgs/example-org/repos')) {
+        return Response.json([{ full_name: 'example-org/api' }]);
       }
       // No commit history available, so the weekly statistics are used.
       if (url.endsWith('/graphql')) return new Response('{}', { status: 500 });
@@ -755,7 +757,7 @@ describe('what the repository field accepts', () => {
       return Response.json([]);
     });
     const data = await fetchGitHub(
-      { repo: 'Aptide-ai' },
+      { repo: 'example-org' },
       { ...withToken, now },
     );
     const ada = data.commitActivity?.people[0];
@@ -770,8 +772,8 @@ describe('what the repository field accepts', () => {
 
   it('carries on without lines when the statistics are too big to read', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) {
-        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      if (url.includes('/orgs/example-org/repos')) {
+        return Response.json([{ full_name: 'example-org/api' }]);
       }
       // No commit history available, so the weekly statistics are used.
       if (url.endsWith('/graphql')) return new Response('{}', { status: 500 });
@@ -793,7 +795,7 @@ describe('what the repository field accepts', () => {
       }
       return Response.json([]);
     });
-    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    const data = await fetchGitHub({ repo: 'example-org' }, withToken);
     const ada = data.commitActivity?.people[0];
     // The people still arrive; only the lines are missing, and the block says
     // why rather than quietly leaving a column blank.
@@ -805,8 +807,8 @@ describe('what the repository field accepts', () => {
 
   it('treats an empty contributor list as not yet computed', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) {
-        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      if (url.includes('/orgs/example-org/repos')) {
+        return Response.json([{ full_name: 'example-org/api' }]);
       }
       // No commit history available, so the weekly statistics are used.
       if (url.endsWith('/graphql')) return new Response('{}', { status: 500 });
@@ -827,7 +829,7 @@ describe('what the repository field accepts', () => {
       }
       return Response.json([]);
     });
-    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    const data = await fetchGitHub({ repo: 'example-org' }, withToken);
     expect(data.commitActivity?.people[0]?.added).toBeUndefined();
     expect(data.warnings.join(' ')).toMatch(/has not worked out/);
     vi.unstubAllGlobals();
@@ -882,8 +884,8 @@ describe('what the repository field accepts', () => {
     const calls: string[] = [];
     vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
       calls.push(url);
-      if (url.includes('/orgs/Aptide-ai/repos')) {
-        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      if (url.includes('/orgs/example-org/repos')) {
+        return Response.json([{ full_name: 'example-org/api' }]);
       }
       if (url.endsWith('/graphql')) {
         const body = typeof init?.body === 'string' ? init.body : '';
@@ -924,7 +926,7 @@ describe('what the repository field accepts', () => {
       }
       return Response.json([]);
     });
-    const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
+    const data = await fetchGitHub({ repo: 'example-org' }, withToken);
     const espen = data.commitActivity?.people[0];
     expect(espen?.added).toBe(84_008);
     expect(espen?.removed).toBe(5059);
@@ -951,8 +953,8 @@ describe('what the repository field accepts', () => {
     const now = new Date('2026-09-06T12:00:00Z');
     let askedSince = '';
     vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
-      if (url.includes('/orgs/Aptide-ai/repos')) {
-        return Response.json([{ full_name: 'Aptide-ai/aptide' }]);
+      if (url.includes('/orgs/example-org/repos')) {
+        return Response.json([{ full_name: 'example-org/api' }]);
       }
       if (url.endsWith('/graphql')) {
         const body = typeof init?.body === 'string' ? init.body : '';
@@ -987,7 +989,7 @@ describe('what the repository field accepts', () => {
       return Response.json([]);
     });
     const data = await fetchGitHub(
-      { repo: 'Aptide-ai', windowDays: '7' },
+      { repo: 'example-org', windowDays: '7' },
       { ...withToken, now },
     );
     expect(data.commitActivity?.peopleDays).toBe(7);

@@ -170,7 +170,7 @@ export function normaliseUser(input: string): string | null {
 
 /**
  * A bare account or organisation name, meaning "everything this owner has".
- * `Aptide-ai` is a perfectly reasonable thing to type when you want the
+ * `facebook` is a perfectly reasonable thing to type when you want the
  * organisation rather than one of its repositories.
  */
 export function parseOwner(input: string): string | null {
