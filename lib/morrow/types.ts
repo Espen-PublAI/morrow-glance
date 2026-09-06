@@ -172,6 +172,8 @@ export interface PluginManifest {
 
 /** What a plugin's server module receives when Morrow Server fetches for a block. */
 export interface PluginServerContext {
+  /** The view this block is showing, so a plugin can fetch only what it needs. */
+  view: string;
   /** Server environment variables; credentials live here, never in config. */
   env: Record<string, string | undefined>;
   /** The display's timezone. */

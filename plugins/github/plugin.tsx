@@ -1,7 +1,7 @@
 import { GitBranch } from 'lucide-react';
 import type { CSSProperties } from 'react';
 
-import { readStringSetting } from '@/lib/morrow/settings';
+import { readBooleanSetting, readStringSetting } from '@/lib/morrow/settings';
 import { definePlugin, type PluginViewProps } from '@/lib/morrow/types';
 
 import { compactNumber, describeEvent, relativeTime } from './events';
@@ -22,6 +22,14 @@ import './plugin.css';
 
 const EVENT_ROWS = 8;
 
+function readParts({ settings }: PluginViewProps) {
+  return {
+    figures: readBooleanSetting(settings, 'showFigures', true),
+    graph: readBooleanSetting(settings, 'showGraph', true),
+    people: readBooleanSetting(settings, 'showPeople', true),
+  };
+}
+
 function readLabels({ settings }: PluginViewProps) {
   const user = readStringSetting(settings, 'user').replace(/^@/, '');
   const repo = readStringSetting(settings, 'repo');
@@ -34,6 +42,9 @@ function readLabels({ settings }: PluginViewProps) {
  * how busy the day was. The same visual language as the world map, and shared
  * by the person's calendar and the repository's commits.
  */
+/** Sunday first, matching how the weeks are laid out. */
+const WEEKDAYS = ['', 'Mon', '', 'Wed', '', 'Fri', ''] as const;
+
 function DotGrid({ weeks }: { weeks: number[][] }) {
   const max = Math.max(0, ...weeks.flat());
   // A CSS grid rather than an SVG: the cells take their size from the block, so
@@ -41,17 +52,25 @@ function DotGrid({ weeks }: { weeks: number[][] }) {
   // empty space inside a box of the wrong proportions.
   const style = { '--weeks': weeks.length } as CSSProperties;
   return (
-    <div className="github-heatmap" style={style} aria-hidden="true">
-      {weeks.map((week, w) =>
-        week.map((count, d) => (
-          <span
-            key={`${w}-${d}`}
-            className={
-              count < 0 ? 'is-blank' : `is-l${contributionLevel(count, max)}`
-            }
-          />
-        )),
-      )}
+    <div className="github-graph">
+      {/* Which way the grid runs is not obvious from dots alone. */}
+      <ol className="github-weekdays" aria-hidden="true">
+        {WEEKDAYS.map((day, index) => (
+          <li key={index}>{day}</li>
+        ))}
+      </ol>
+      <div className="github-heatmap" style={style} aria-hidden="true">
+        {weeks.map((week, w) =>
+          week.map((count, d) => (
+            <span
+              key={`${w}-${d}`}
+              className={
+                count < 0 ? 'is-blank' : `is-l${contributionLevel(count, max)}`
+              }
+            />
+          )),
+        )}
+      </div>
     </div>
   );
 }
@@ -252,6 +271,7 @@ function spanLabel(activity: { from: string; to: string }): string {
 
 function CommitsView(props: PluginViewProps) {
   const { repo: repoSetting, label: custom } = readLabels(props);
+  const parts = readParts(props);
   const scope =
     props.data && isGitHubData(props.data.data)
       ? props.data.data.commitActivity?.scope
@@ -310,8 +330,8 @@ function CommitsView(props: PluginViewProps) {
     activity && activity.pending > 0
       ? `${activity.pending} still being computed`
       : '',
-    weeks.length > 0 && weeks.length < 52
-      ? `graph: last ${weeks.length} weeks`
+    weeks.length > 0 && parts.graph
+      ? `${weeks.length} weeks left to right, weekdays down`
       : '',
     activity ? '' : 'commit graph on the way',
   ]
@@ -320,37 +340,38 @@ function CommitsView(props: PluginViewProps) {
 
   return (
     <Frame label={label} meta={meta || undefined}>
-      {activity && (
-        // Figures first: they stay readable however quiet the repository is,
-        // where a mostly empty grid does not.
-        <ol className="github-figures">
-          <li>
-            <strong>{compactNumber(activity.last7)}</strong>
-            <small>commits this week</small>
-          </li>
-          <li>
-            <strong>{compactNumber(activity.last28)}</strong>
-            <small>last 28 days</small>
-          </li>
-          <li>
-            <strong>{compactNumber(activity.total)}</strong>
-            {/* Only call it a year when the data really covers one. */}
-            <small>
-              {activity.wholeYear ? 'last year' : spanLabel(activity)}
-            </small>
-          </li>
-          {activity.allTime !== null && (
+      {activity &&
+        parts.figures && (
+          // Figures first: they stay readable however quiet the repository is,
+          // where a mostly empty grid does not.
+          <ol className="github-figures">
             <li>
-              <strong>{compactNumber(activity.allTime)}</strong>
-              <small>all time</small>
+              <strong>{compactNumber(activity.last7)}</strong>
+              <small>commits this week</small>
             </li>
-          )}
-        </ol>
-      )}
-      {weeks.length > 0 && <DotGrid weeks={weeks} />}
+            <li>
+              <strong>{compactNumber(activity.last28)}</strong>
+              <small>last 28 days</small>
+            </li>
+            <li>
+              <strong>{compactNumber(activity.total)}</strong>
+              {/* Only call it a year when the data really covers one. */}
+              <small>
+                {activity.wholeYear ? 'last year' : spanLabel(activity)}
+              </small>
+            </li>
+            {activity.allTime !== null && (
+              <li>
+                <strong>{compactNumber(activity.allTime)}</strong>
+                <small>all time</small>
+              </li>
+            )}
+          </ol>
+        )}
+      {weeks.length > 0 && parts.graph && <DotGrid weeks={weeks} />}
       {/* Who has been committing answers "how is the team doing" better than
           which repository they committed to. Repositories are the fallback. */}
-      {byline.length > 0 && (
+      {byline.length > 0 && parts.people && (
         <ol className="github-top">
           {byline.slice(0, 5).map((entry) => (
             <li key={entry.name}>
@@ -403,6 +424,26 @@ export const plugin = definePlugin({
         label: 'Label',
         type: 'text',
         placeholder: 'Optional \u00b7 defaults to what is shown',
+      },
+      // Tick what this block shows, so one can be the graph alone and another
+      // the figures and the people.
+      {
+        id: 'showFigures',
+        label: 'Show the figures',
+        type: 'boolean',
+        defaultValue: true,
+      },
+      {
+        id: 'showGraph',
+        label: 'Show the graph',
+        type: 'boolean',
+        defaultValue: true,
+      },
+      {
+        id: 'showPeople',
+        label: 'Show the people',
+        type: 'boolean',
+        defaultValue: true,
       },
     ],
     defaultSize: { span: 6, rowSpan: 2 },

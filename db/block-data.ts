@@ -162,6 +162,7 @@ async function fetchViaPlugin(
   const server = pluginServers[block.plugin];
   if (!server) throw new Error('This plugin has no server module.');
   return server.fetch(block.settings ?? {}, {
+    view: block.view,
     env: process.env,
     timeZone: config.timeZone,
     now: new Date(),

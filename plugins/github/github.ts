@@ -563,7 +563,7 @@ async function fetchRepo(
 class StatsPendingError extends Error {}
 
 /** How long to wait between attempts while GitHub computes statistics. */
-const STATS_BACKOFF_MS = [1200, 2500] as const;
+const STATS_BACKOFF_MS = [1200] as const;
 
 async function requestStats(
   url: string,
@@ -605,8 +605,8 @@ async function fetchCommitActivity(
       token,
     );
   } catch {
-    // See fetchCommitsAsWeeks: some repositories never get their statistics.
-    raw = await fetchCommitsAsWeeks({ owner, name }, token, now);
+    // See readCommits: some repositories never get their statistics computed.
+    raw = (await readCommits({ owner, name }, token, now)).weeks;
     wholeYear = false;
   }
   const allTime = await fetchTotalCommits({ owner, name }, token).catch(
@@ -652,16 +652,33 @@ function weekStart(time: number): number {
  * Commit dates for one repository, bucketed into the weekly shape the
  * statistics endpoint would have returned.
  */
-async function fetchCommitsAsWeeks(
+interface RepoActivity {
+  /** Weekly buckets in the shape the statistics endpoint returns. */
+  weeks: unknown[];
+  /** Commits per author within the people window. */
+  authors: Map<string, number>;
+  /** False when the commit list ran out of pages before the window did. */
+  wholeWindow: boolean;
+}
+
+/**
+ * Commit dates and authors for one repository, in a single pass. Both come
+ * from the same pages, so reading them separately would double the cost for
+ * no benefit.
+ */
+async function readCommits(
   { owner, name }: RepoRef,
   token: string | undefined,
   now: Date,
-  authors?: Map<string, number>,
-  authorSince?: string,
-): Promise<unknown[]> {
+): Promise<RepoActivity> {
   const since = new Date(now.getTime() - FALLBACK_DAYS * 86_400_000);
+  const peopleSince = new Date(now.getTime() - PEOPLE_DAYS * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
   const counts = new Map<string, number>();
+  const authors = new Map<string, number>();
   let truncated = false;
+
   for (let page = 1; page <= FALLBACK_PAGES; page += 1) {
     const response = await request(
       `${API}/repos/${owner}/${name}/commits?since=${since.toISOString()}&per_page=${FALLBACK_PER_PAGE}&page=${page}`,
@@ -679,7 +696,7 @@ async function fetchCommitsAsWeeks(
       if (!date) continue;
       const day = date.slice(0, 10);
       counts.set(day, (counts.get(day) ?? 0) + 1);
-      if (authors && (!authorSince || day > authorSince)) {
+      if (day > peopleSince) {
         // Prefer the GitHub account; fall back to the name on the commit so a
         // contributor without a linked account still shows up.
         const login =
@@ -710,7 +727,7 @@ async function fetchCommitsAsWeeks(
     });
     weeks.push({ week, days });
   }
-  return weeks;
+  return { weeks, authors, wholeWindow: !truncated };
 }
 
 /**
@@ -870,40 +887,51 @@ async function fetchOwnerActivity(
 
   const results = await Promise.all(
     repos.map(async (ref) => {
+      // Read the commits once. They give the people either way, and the weekly
+      // shape too when GitHub will not compute its own. Keep the failure: when
+      // the statistics were merely pending, this is the actionable error.
+      const commits = await readCommits(ref, token, now).then(
+        (value) => ({ value, error: null as unknown }),
+        (error: unknown) => ({ value: null, error }),
+      );
       try {
         const raw = await requestStats(
           `${API}/repos/${ref.owner}/${ref.name}/stats/commit_activity`,
           token,
         );
-        // A repository with no commits reports nothing, which is not a failure.
         return {
           ref,
+          // A repository with no commits reports nothing, not a failure.
           weeks: Array.isArray(raw) ? raw : [],
+          authors: commits.value?.authors ?? new Map<string, number>(),
           reason: null,
           wholeYear: true,
         };
       } catch (cause) {
-        // GitHub may never finish computing a repository's statistics. Counting
-        // its commits gives the same picture over a shorter window.
-        try {
+        // GitHub may never finish computing a repository's statistics.
+        if (commits.value) {
           return {
             ref,
-            weeks: await fetchCommitsAsWeeks(ref, token, now),
+            weeks: commits.value.weeks,
+            authors: commits.value.authors,
             reason: null,
             wholeYear: false,
           };
-        } catch (fallback) {
-          // Which error helps depends on the first one. A refusal or a missing
-          // repository is the actionable fact; merely waiting on GitHub is not,
-          // so there the fallback's failure is what the reader needs.
-          const useful = cause instanceof StatsPendingError ? fallback : cause;
-          return {
-            ref,
-            weeks: null,
-            reason: messageOf(useful),
-            wholeYear: true,
-          };
         }
+        // Which error helps depends on the first one. A refusal or a missing
+        // repository is the actionable fact; merely waiting on GitHub is not,
+        // so there the commit list's failure is what the reader needs.
+        const useful =
+          cause instanceof StatsPendingError && commits.error
+            ? commits.error
+            : cause;
+        return {
+          ref,
+          weeks: null,
+          authors: new Map<string, number>(),
+          reason: messageOf(useful),
+          wholeYear: true,
+        };
       }
     }),
   );
@@ -913,35 +941,25 @@ async function fetchOwnerActivity(
     ): result is {
       ref: RepoRef;
       weeks: unknown[];
+      authors: Map<string, number>;
       reason: null;
       wholeYear: boolean;
     } => result.weeks !== null,
   );
   if (usable.length === 0) {
-    // Say what actually went wrong, rather than assuming it was the same thing
-    // for every repository.
+    // Say what actually went wrong, rather than assuming one cause for all.
     const reasons = [...new Set(results.map((result) => result.reason))];
     throw new Error(
       reasons.filter(Boolean).join(' ') || 'GitHub returned no statistics.',
     );
   }
 
-  // Who has been committing lately. The commit list is the only source that
-  // gives recent per-person counts; /contributors is all-time and, on a busy
-  // repository, megabytes of weekly history for a handful of names.
   const authors = new Map<string, number>();
-  const peopleSince = new Date(now.getTime() - PEOPLE_DAYS * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
-  await Promise.all(
-    usable.map(async (result) => {
-      try {
-        await fetchCommitsAsWeeks(result.ref, token, now, authors, peopleSince);
-      } catch {
-        // A repository that will not list its commits simply contributes none.
-      }
-    }),
-  );
+  for (const result of usable) {
+    for (const [login, count] of result.authors) {
+      authors.set(login, (authors.get(login) ?? 0) + count);
+    }
+  }
   const people = [...authors.entries()]
     .map(([login, commits]) => ({ login, commits }))
     .sort((a, b) => b.commits - a.commits);
@@ -1090,7 +1108,11 @@ export async function fetchGitHub(
 
   // With a token neither field is needed: GitHub knows whose token it is and
   // which repositories it can read.
-  const viewer = !user && token ? await fetchViewer(token) : null;
+  // Only the person views need a person, and only they justify asking GitHub
+  // who the token belongs to.
+  const personViews = context.view === 'heatmap' || context.view === 'activity';
+  const viewer =
+    !user && token && personViews ? await fetchViewer(token) : null;
   const person = user ?? viewer;
   /** No repository or owner named, but a token: cover all it can read. */
   const wholeToken = !rawRepo && Boolean(token);
@@ -1122,7 +1144,7 @@ export async function fetchGitHub(
   }
 
   const tasks: Promise<void>[] = [];
-  if (person) {
+  if (person && personViews) {
     tasks.push(
       attempt('Activity', async () => {
         data.events = await fetchEvents(person, token);
@@ -1136,7 +1158,8 @@ export async function fetchGitHub(
       );
     }
   }
-  if (owner || wholeToken) {
+  const repoViews = context.view === 'commits' || context.view === 'repo';
+  if ((owner || wholeToken) && repoViews) {
     tasks.push(
       attempt('Commit activity', async () => {
         data.commitActivity = await fetchOwnerActivity(
@@ -1147,7 +1170,7 @@ export async function fetchGitHub(
       }),
     );
   }
-  if (repoName) {
+  if (repoName && repoViews) {
     tasks.push(
       attempt('Repository', async () => {
         data.repo = await fetchRepo(repoName, token);

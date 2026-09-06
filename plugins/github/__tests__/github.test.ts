@@ -63,6 +63,7 @@ describe('settings', () => {
 
 describe('what the repository field accepts', () => {
   const context = {
+    view: 'commits',
     env: {},
     timeZone: 'Europe/Oslo',
     now: new Date('2026-09-04T12:00:00Z'),
@@ -272,7 +273,10 @@ describe('what the repository field accepts', () => {
     vi.stubGlobal('fetch', async () => Response.json(eventsFixture));
     const data = await fetchGitHub(
       { user: 'Espen-PublAI', repo: 'a/b/c' },
-      context,
+      {
+        ...context,
+        view: 'activity',
+      },
     );
     expect(data.events).not.toBeNull();
     expect(data.warnings).toEqual([
@@ -302,10 +306,14 @@ describe('what the repository field accepts', () => {
       if (url.includes('/graphql')) return Response.json(contributionsFixture);
       throw new Error(`unexpected ${url}`);
     });
-    // No username, no repository: only a token.
+    // No username, no repository: only a token. The person view resolves who
+    // the token belongs to.
+    const person = await fetchGitHub({}, { ...withToken, view: 'activity' });
+    expect(person.user).toBe('Espen-PublAI');
+    expect(person.events).not.toBeNull();
+
+    // The repository view covers everything the token can read.
     const data = await fetchGitHub({}, withToken);
-    expect(data.user).toBe('Espen-PublAI');
-    expect(data.events).not.toBeNull();
     expect(data.commitActivity?.total).toBe(2);
     // Every repository the token reads, and all of one owner, so it is named.
     expect(data.commitActivity?.scope).toBe('Aptide-ai');
@@ -463,11 +471,9 @@ describe('what the repository field accepts', () => {
       if (url.includes('/commits')) return new Response('{}', { status: 500 });
       return new Response('{}', { status: 202 });
     });
-    const data = await fetchGitHub({}, withToken);
-    const warning = data.warnings.join(' ');
-    // Two repositories, two different failures, both reported.
-    expect(warning).toMatch(/403/);
-    expect(warning).toMatch(/500/);
+    // Nothing this view asked for could be read, so it fails outright, and the
+    // message names both causes rather than assuming one for every repository.
+    await expect(fetchGitHub({}, withToken)).rejects.toThrow(/403.*500/s);
     vi.unstubAllGlobals();
   }, 20_000);
 
@@ -717,6 +723,7 @@ describe('what the repository field accepts', () => {
 
 describe('statistics that GitHub computes lazily', () => {
   const context = {
+    view: 'commits',
     env: {},
     timeZone: 'Europe/Oslo',
     now: new Date('2026-09-04T12:00:00Z'),

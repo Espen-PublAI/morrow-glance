@@ -167,7 +167,9 @@ describe('repository commit activity', () => {
     expect(
       container.querySelectorAll('.github-heatmap span:not(.is-blank)'),
     ).toHaveLength(16 * 7);
-    expect(screen.getByText(/graph: last 16 weeks/)).toBeTruthy();
+    expect(
+      screen.getByText(/16 weeks left to right, weekdays down/),
+    ).toBeTruthy();
     // The numbers say what the picture cannot.
     expect(screen.getAllByText('26').length).toBeGreaterThanOrEqual(3);
   });
@@ -216,6 +218,53 @@ describe('repository commit activity', () => {
     );
     expect(screen.getByText('api')).toBeTruthy();
     expect(screen.getByText(/1 repository/)).toBeTruthy();
+  });
+
+  it('shows only the parts that are ticked', () => {
+    const full = {
+      ...activity,
+      scope: 'Aptide-ai',
+      repos: [{ name: 'api', commits: 300 }],
+      people: [{ login: 'ada', commits: 42 }],
+      peopleDays: 28,
+      allTime: 900,
+    };
+    // Graph only: no figures, no names.
+    const graphOnly = show('commits', stored({ commitActivity: full }), {
+      user: '',
+      repo: 'Aptide-ai',
+      showFigures: false,
+      showPeople: false,
+    });
+    expect(graphOnly.container.querySelector('.github-heatmap')).toBeTruthy();
+    expect(graphOnly.container.querySelector('.github-figures')).toBeNull();
+    expect(graphOnly.container.querySelector('.github-top')).toBeNull();
+    cleanup();
+
+    // Figures and people, no graph.
+    const rest = show('commits', stored({ commitActivity: full }), {
+      user: '',
+      repo: 'Aptide-ai',
+      showGraph: false,
+    });
+    expect(rest.container.querySelector('.github-heatmap')).toBeNull();
+    expect(rest.container.querySelector('.github-figures')).toBeTruthy();
+    expect(screen.getByText('ada')).toBeTruthy();
+  });
+
+  it('labels the days so the axes can be read', () => {
+    const { container } = show(
+      'commits',
+      stored({ commitActivity: { ...activity, scope: 'Aptide-ai' } }),
+      repoSettings,
+    );
+    const days = [...container.querySelectorAll('.github-weekdays li')].map(
+      (li) => li.textContent,
+    );
+    // Seven rows, Sunday first, with three named so the grid can be read
+    // without crowding it.
+    expect(days).toEqual(['', 'Mon', '', 'Wed', '', 'Fri', '']);
+    expect(screen.getByText(/weeks left to right, weekdays down/)).toBeTruthy();
   });
 
   it('shows the graph alone when GitHub has not worked out the contributors', () => {

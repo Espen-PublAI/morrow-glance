@@ -15,6 +15,16 @@ Two views describe a repository and two describe a person.
 To see how a project is doing, use **Repository: commit activity**. It counts
 everybody's commits, not just yours, and needs no token.
 
+## What a block shows
+
+The **Repository: commit activity** view has three parts, each of which can be
+switched off in the block settings: the figures, the graph, and the people. So
+one block can be the graph alone and another the figures and the names.
+
+In the graph, each column is a week, oldest on the left, and each row is a day
+of the week, Sunday at the top with Monday, Wednesday and Friday labelled. A
+bigger, more solid dot is a busier day, scaled against the busiest day shown.
+
 ## Settings
 
 With a token, **both settings are optional**. A token already says who it
@@ -130,11 +140,16 @@ warning and no longer stops the other views from loading.
 ## Data
 
 Morrow Server fetches every five minutes while a screen shows the block, and
-each view's data is fetched independently: a token that cannot read
-contributions still gets you the activity feed, and the block explains what
-is missing rather than going blank. Stored data is compact by design: the
-year of contributions is 53 weeks of seven integers, and each event keeps
-only the fields a sentence needs.
+only what the chosen view needs: a repository view never asks who the token
+belongs to, and a person view never lists repositories. Within a view the
+parts are fetched independently, so a token that cannot read contributions
+still gets you the activity feed, and the block explains what is missing
+rather than going blank.
+
+Stored data is compact by design: a year is 53 weeks of seven integers, and
+each event keeps only the fields a sentence needs. An organisation of five
+repositories costs about twenty requests per refresh, against an hourly
+allowance of five thousand with a token.
 
 The parsers are tested against captured API responses in `__tests__/`, with
 personal details stripped.
