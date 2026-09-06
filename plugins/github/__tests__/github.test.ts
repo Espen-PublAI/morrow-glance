@@ -788,9 +788,11 @@ describe('what the repository field accepts', () => {
     });
     const data = await fetchGitHub({ repo: 'Aptide-ai' }, withToken);
     const ada = data.commitActivity?.people[0];
+    // The people still arrive; only the lines are missing, and the block says
+    // why rather than quietly leaving a column blank.
     expect(ada?.commits).toBeGreaterThan(0);
     expect(ada?.added).toBeUndefined();
-    expect(data.warnings).toEqual([]);
+    expect(data.warnings.join(' ')).toMatch(/^Lines: .*500/);
     vi.unstubAllGlobals();
   }, 20_000);
 

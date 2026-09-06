@@ -811,15 +811,15 @@ async function fetchAuthorLines(
   { owner, name }: RepoRef,
   token: string | undefined,
   since: Date,
-): Promise<Map<string, AuthorLines>> {
+): Promise<{ lines: Map<string, AuthorLines>; reason: string | null }> {
   try {
     const raw = await requestStats(
       `${API}/repos/${owner}/${name}/stats/contributors`,
       token,
     );
-    return parseContributorLines(raw, since);
-  } catch {
-    return new Map();
+    return { lines: parseContributorLines(raw, since), reason: null };
+  } catch (cause) {
+    return { lines: new Map(), reason: messageOf(cause) };
   }
 }
 
@@ -943,6 +943,7 @@ async function fetchOwnerActivity(
   owner: string | null,
   token: string | undefined,
   now: Date,
+  warnings: string[] = [],
 ): Promise<CommitActivity> {
   const repos =
     owner === null
@@ -1033,13 +1034,16 @@ async function fetchOwnerActivity(
   // Lines moved, from the weekly statistics, for the same window.
   const peopleSince = new Date(now.getTime() - PEOPLE_DAYS * 86_400_000);
   const lineTotals = new Map<string, AuthorLines>();
+  const lineFailures: string[] = [];
   await Promise.all(
     usable.map(async (result) => {
-      for (const [login, lines] of await fetchAuthorLines(
+      const { lines: found, reason } = await fetchAuthorLines(
         result.ref,
         token,
         peopleSince,
-      )) {
+      );
+      if (reason) lineFailures.push(reason);
+      for (const [login, lines] of found) {
         const running = lineTotals.get(login) ?? {
           added: 0,
           removed: 0,
@@ -1053,6 +1057,11 @@ async function fetchOwnerActivity(
       }
     }),
   );
+
+  // Say why lines are missing rather than quietly leaving them out.
+  if (lineTotals.size === 0 && lineFailures.length > 0) {
+    warnings.push(`Lines: ${[...new Set(lineFailures)].join(' ')}`);
+  }
 
   const logins = new Set([...authors.keys(), ...lineTotals.keys()]);
   const people = [...logins]
@@ -1272,6 +1281,7 @@ export async function fetchGitHub(
           owner,
           token,
           context.now,
+          data.warnings,
         );
       }),
     );
