@@ -138,11 +138,11 @@ describe('mergePlaces', () => {
     const local = [place('Oslo', 59.91, 10.75, 'index')];
     const remote = [
       place('Oslo', 59.9127, 10.7461, 'remote'),
-      place('Veggli', 60.04, 9.15, 'remote'),
+      place('Smalltown', 60.04, 9.15, 'remote'),
     ];
     expect(
       mergePlaces(local, remote).map((p) => `${p.name}:${p.origin}`),
-    ).toEqual(['Oslo:index', 'Veggli:remote']);
+    ).toEqual(['Oslo:index', 'Smalltown:remote']);
   });
 });
 
@@ -157,7 +157,7 @@ describe('placeFromCoordinatesQuery', () => {
       origin: 'coordinates',
     });
     expect(placeFromCoordinatesQuery('-33.9 151.2', 'UTC')?.lat).toBe(-33.9);
-    expect(placeFromCoordinatesQuery('Veggli', 'UTC')).toBeUndefined();
+    expect(placeFromCoordinatesQuery('Smalltown', 'UTC')).toBeUndefined();
     expect(placeFromCoordinatesQuery('95, 10', 'UTC')).toBeUndefined();
   });
 });

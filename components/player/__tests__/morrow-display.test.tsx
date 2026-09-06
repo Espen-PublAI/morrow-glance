@@ -142,7 +142,7 @@ describe('a page with nothing on it', () => {
 describe('what the footer shows', () => {
   const render_ = (footer: Partial<MorrowConfig['footer']>) => {
     const served = config({
-      location: 'Veggli',
+      location: 'Oslo',
       footer: { date: true, location: true, time: true, ...footer },
     });
     fetchConfig.mockResolvedValue({
@@ -157,7 +157,7 @@ describe('what the footer shows', () => {
     render_({});
     await settle();
     expect(screen.getByText('Lobby')).toBeTruthy();
-    expect(screen.getByText('Veggli')).toBeTruthy();
+    expect(screen.getByText('Oslo')).toBeTruthy();
     expect(screen.getByText(/^\d{2}:\d{2}$/)).toBeTruthy();
     expect(
       screen.getByText(
@@ -176,7 +176,7 @@ describe('what the footer shows', () => {
   it('hides the location and the date independently', async () => {
     render_({ location: false, date: false });
     await settle();
-    expect(screen.queryByText('Veggli')).toBeNull();
+    expect(screen.queryByText('Oslo')).toBeNull();
     expect(screen.queryByText(/September/)).toBeNull();
     // The time and the name stay.
     expect(screen.getByText(/^\d{2}:\d{2}$/)).toBeTruthy();
@@ -188,7 +188,7 @@ describe('what the footer shows', () => {
     await settle();
     expect(screen.getByText('Lobby')).toBeTruthy();
     expect(screen.queryByText(/^\d{2}:\d{2}$/)).toBeNull();
-    expect(screen.queryByText('Veggli')).toBeNull();
+    expect(screen.queryByText('Oslo')).toBeNull();
   });
 });
 

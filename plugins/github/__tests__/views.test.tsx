@@ -118,7 +118,7 @@ describe('the repository views, one thing each', () => {
   const repoSettings = { user: '', repo: 'github/docs' };
   const full = {
     ...activity,
-    scope: 'Aptide-ai',
+    scope: 'example-org',
     repos: [{ name: 'api', commits: 300 }],
     people: [
       { login: 'ada', commits: 42 },

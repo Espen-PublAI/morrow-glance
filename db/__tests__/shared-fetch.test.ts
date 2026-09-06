@@ -9,7 +9,7 @@ import { sourceKey } from '@/lib/morrow/sources';
  */
 
 describe('what a fetch is keyed on', () => {
-  const settings = { repo: 'Aptide-ai' };
+  const settings = { repo: 'example-org' };
   const plugin = { kind: 'plugin' as const, intervalSeconds: 300 };
 
   it('separates two plugins that happen to share settings', () => {
@@ -20,7 +20,7 @@ describe('what a fetch is keyed on', () => {
 
   it('separates different settings and joins identical ones', () => {
     expect(sourceKey(plugin, settings, 'morrow.github')).toBe(
-      sourceKey(plugin, { repo: 'Aptide-ai' }, 'morrow.github'),
+      sourceKey(plugin, { repo: 'example-org' }, 'morrow.github'),
     );
     expect(sourceKey(plugin, settings, 'morrow.github')).not.toBe(
       sourceKey(plugin, { repo: 'other' }, 'morrow.github'),
